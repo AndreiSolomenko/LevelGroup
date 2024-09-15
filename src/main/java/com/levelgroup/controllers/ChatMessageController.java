@@ -8,7 +8,7 @@ import com.levelgroup.bot.ChatBot;
 import java.util.ArrayList;
 import java.util.List;
 
-@CrossOrigin(origins = "http://localhost:3000")
+//@CrossOrigin(origins = "http://localhost:3000")
 @RestController
 @RequestMapping("/api")
 public class ChatMessageController {
@@ -27,8 +27,7 @@ public class ChatMessageController {
             @RequestParam(required = false) String messageText
     ) {
         String welcomeMessage = userName + ": " + messageText;
-//        long chatId = 875602491;
-        long chatId = 875602491;
+        long chatId = 00000000;
 
         String massageType = "incoming";
         chatBot.saveIncomingMessage(messageText, userName, massageType);
