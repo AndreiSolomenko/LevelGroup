@@ -17,8 +17,19 @@ public class TesseractController {
     @PostMapping("/api/process-image")
     public Response processImage(@RequestParam("image") MultipartFile image, @RequestParam("language") String language) {
         try {
+            // Перевіряємо, чи вказано файл і мова
+            if (image.isEmpty()) {
+                throw new IllegalArgumentException("Не завантажено зображення.");
+            }
+            if (language == null || language.trim().isEmpty()) {
+                throw new IllegalArgumentException("Мова не вказана.");
+            }
+
             // Перетворюємо MultipartFile в BufferedImage
             BufferedImage bufferedImage = ImageIO.read(image.getInputStream());
+            if (bufferedImage == null) {
+                throw new IllegalArgumentException("Невірний формат зображення.");
+            }
 
             // Створюємо екземпляр Tesseract
             ITesseract instance = new Tesseract();
@@ -43,10 +54,13 @@ public class TesseractController {
 
             // Повертаємо результат як JSON
             return new Response(resultText);
+
+        } catch (IllegalArgumentException e) {
+            return new Response("Помилка: " + e.getMessage()); // Повертаємо конкретну помилку
         } catch (IOException e) {
-            throw new RuntimeException("Помилка при обробці зображення", e);
+            return new Response("Помилка при обробці зображення: " + e.getMessage());
         } catch (Exception e) {
-            throw new RuntimeException("Помилка OCR", e);
+            return new Response("Помилка OCR: " + e.getMessage());
         }
     }
 
@@ -66,7 +80,4 @@ public class TesseractController {
             this.text = text;
         }
     }
-
-
-
 }
