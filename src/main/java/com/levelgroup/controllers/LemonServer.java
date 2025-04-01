@@ -1,13 +1,11 @@
 package com.levelgroup.controllers;
 
 import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.web.bind.annotation.*;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.util.*;
 
-@SpringBootApplication
 @RestController
 public class LemonServer {
     private static final String LEMON_SECRET = "твій_секретний_ключ";
