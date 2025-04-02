@@ -42,17 +42,32 @@ public class LemonServer {
 
     @PostMapping("/webhook")
     public Map<String, String> handleWebhook(@RequestBody Map<String, Object> payload) {
-        String eventName = (String) payload.get("event_name");
-        Map<String, Object> data = (Map<String, Object>) payload.get("data");
-        Map<String, Object> attributes = (Map<String, Object>) data.get("attributes");
-        String email = (String) attributes.get("user_email");
+        try {
+            // Отримуємо назву події
+            String eventName = (String) payload.get("meta.event_name");
 
-        if ("subscription_created".equals(eventName) || "order_paid".equals(eventName)) {
-            activatedEmails.add(email);
-            System.out.println("User activated: " + email);
+            // Переконуємося, що це потрібна нам подія
+            if ("subscription_payment_success".equals(eventName)) {
+                Map<String, Object> data = (Map<String, Object>) payload.get("data");
+                Map<String, Object> attributes = (Map<String, Object>) data.get("attributes");
+                String email = (String) attributes.get("user_email");
+
+                if (email != null) {
+                    activatedEmails.add(email);
+                    System.out.println("✅ Користувач активований: " + email);
+                } else {
+                    System.out.println("⚠️ Email не знайдено у вебхуці.");
+                }
+            } else {
+                System.out.println("🔸 Отримано іншу подію: " + eventName);
+            }
+
+            return Map.of("message", "Webhook received successfully");
+
+        } catch (Exception e) {
+            System.err.println("❌ Помилка обробки вебхука: " + e.getMessage());
+            return Map.of("error", "Internal server error");
         }
-
-        return Map.of("message", "Webhook received");
     }
 
 
