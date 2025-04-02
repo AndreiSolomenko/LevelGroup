@@ -44,10 +44,11 @@ public class LemonServer {
     public Map<String, String> handleWebhook(@RequestBody Map<String, Object> payload) {
         try {
             // Отримуємо назву події
-            String eventName = (String) payload.get("meta.event_name");
+            String eventName = (String) ((Map<String, Object>) payload.get("meta")).get("event_name");
+            System.out.println("🔔 Подія отримана: " + eventName);
 
-            // Переконуємося, що це потрібна нам подія
-            if ("subscription_payment_success".equals(eventName)) {
+            // Перевіряємо, чи це подія про успішну оплату
+            if ("order_created".equals(eventName) || "order_paid".equals(eventName)) {
                 Map<String, Object> data = (Map<String, Object>) payload.get("data");
                 Map<String, Object> attributes = (Map<String, Object>) data.get("attributes");
                 String email = (String) attributes.get("user_email");
@@ -59,7 +60,7 @@ public class LemonServer {
                     System.out.println("⚠️ Email не знайдено у вебхуці.");
                 }
             } else {
-                System.out.println("🔸 Отримано іншу подію: " + eventName);
+                System.out.println("ℹ️ Інша подія, ігноруємо.");
             }
 
             return Map.of("message", "Webhook received successfully");
@@ -68,6 +69,23 @@ public class LemonServer {
             System.err.println("❌ Помилка обробки вебхука: " + e.getMessage());
             return Map.of("error", "Internal server error");
         }
+    }
+
+    @PostMapping("/auth")
+    public Map<String, Object> authenticate(@RequestBody Map<String, String> request) {
+        String email = request.get("email");
+        String deviceId = request.get("device_id");
+
+        System.out.println("🔍 Перевірка авторизації для: " + email + " (" + deviceId + ")");
+
+        if (activatedEmails.contains(email)) {
+            if (emailDeviceMap.containsKey(email)) {
+                return Map.of("message", "This email is already activated on another device.", "activated", false);
+            }
+            emailDeviceMap.put(email, deviceId);
+            return Map.of("activated", true);
+        }
+        return Map.of("message", "Email not found in the database.", "activated", false);
     }
 
 
@@ -87,23 +105,6 @@ public class LemonServer {
         }
 
         return Map.of("activated", false);
-    }
-
-
-
-    @PostMapping("/auth")
-    public Map<String, Object> authenticate(@RequestBody Map<String, String> request) {
-        String email = request.get("email");
-        String deviceId = request.get("device_id");
-
-        if (activatedEmails.contains(email)) {
-            if (emailDeviceMap.containsKey(email)) {
-                return Map.of("message", "This email is already activated on another device.", "activated", false);
-            }
-            emailDeviceMap.put(email, deviceId);
-            return Map.of("activated", true);
-        }
-        return Map.of("message", "Email not found in the database.", "activated", false);
     }
 
 
