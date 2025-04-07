@@ -1,15 +1,27 @@
 package com.levelgroup.controllers;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.boot.SpringApplication;
 import org.springframework.web.bind.annotation.*;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.util.*;
 
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.util.StreamUtils;
+
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.util.StreamUtils;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.nio.charset.StandardCharsets;
+
+
 @RestController
 public class LemonServer {
-    private static final String LEMON_SECRET = "твій_секретний_ключ";
-    private final Set<String> activatedUsers = new HashSet<>();
+    private static final String LEMON_SECRET = "qazwsx";
 
     private static final Set<String> activatedEmails = new HashSet<>();
     private static final Map<String, String> emailDeviceMap = new HashMap<>();
@@ -18,36 +30,28 @@ public class LemonServer {
         SpringApplication.run(LemonServer.class, args);
     }
 
-//    @PostMapping("/webhook")
-//    public Map<String, String> handleWebhook(@RequestHeader("x-signature") String signature, @RequestBody Map<String, Object> payload) {
-//        String computedSignature = hmacSha256(LEMON_SECRET, payload.toString());
-//
-//        if (!signature.equals(computedSignature)) {
-//            return Map.of("message", "Invalid signature");
-//        }
-//
-//        String eventName = (String) payload.get("event_name");
-//        Map<String, Object> data = (Map<String, Object>) payload.get("data");
-//        Map<String, Object> attributes = (Map<String, Object>) data.get("attributes");
-//        String email = (String) attributes.get("user_email");
-//
-//        if ("subscription_created".equals(eventName) || "order_paid".equals(eventName)) {
-//            activatedUsers.add(email);
-//            System.out.println("User activated: " + email);
-//        }
-//
-//        return Map.of("message", "Webhook received");
-//    }
-
-
     @PostMapping("/webhook")
-    public Map<String, String> handleWebhook(@RequestBody Map<String, Object> payload) {
+    public ResponseEntity<Map<String, String>> handleWebhook(HttpServletRequest request) {
         try {
-            // Отримуємо назву події
+            String signature = request.getHeader("X-Signature");
+            if (signature == null) {
+                System.out.println("❌ Відсутній підпис у заголовку.");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Missing signature"));
+            }
+
+            String rawBody = StreamUtils.copyToString(request.getInputStream(), StandardCharsets.UTF_8);
+            String computedSignature = hmacSha256(LEMON_SECRET, rawBody);
+
+            if (!computedSignature.equals(signature)) {
+                System.out.println("❌ Підписи не збігаються.");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Invalid signature"));
+            }
+
+            // Парсимо тіло в JSON
+            Map<String, Object> payload = new ObjectMapper().readValue(rawBody, Map.class);
             String eventName = (String) ((Map<String, Object>) payload.get("meta")).get("event_name");
             System.out.println("🔔 Подія отримана: " + eventName);
 
-            // Перевіряємо, чи це подія про успішну оплату
             if ("order_created".equals(eventName) || "order_paid".equals(eventName)) {
                 Map<String, Object> data = (Map<String, Object>) payload.get("data");
                 Map<String, Object> attributes = (Map<String, Object>) data.get("attributes");
@@ -63,11 +67,11 @@ public class LemonServer {
                 System.out.println("ℹ️ Інша подія, ігноруємо.");
             }
 
-            return Map.of("message", "Webhook received successfully");
+            return ResponseEntity.ok(Map.of("message", "Webhook received successfully"));
 
         } catch (Exception e) {
             System.err.println("❌ Помилка обробки вебхука: " + e.getMessage());
-            return Map.of("error", "Internal server error");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "Internal server error"));
         }
     }
 
