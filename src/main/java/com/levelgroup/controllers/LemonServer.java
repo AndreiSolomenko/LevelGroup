@@ -25,6 +25,7 @@ public class LemonServer {
 
     private static final Set<String> activatedEmails = new HashSet<>();
     private static final Map<String, String> emailDeviceMap = new HashMap<>();
+    private static final Map<String, String> confirmationTokens = new HashMap<>();
 
     public static void main(String[] args) {
         SpringApplication.run(LemonServer.class, args);
@@ -84,14 +85,46 @@ public class LemonServer {
 
         if (activatedEmails.contains(email)) {
             if (emailDeviceMap.containsKey(email)) {
-                return Map.of("message", "This email is already activated on another device.", "activated", false);
+                String existingDevice = emailDeviceMap.get(email);
+                if (!existingDevice.equals(deviceId)) {
+                    // Генеруємо токен для підтвердження
+                    String token = UUID.randomUUID().toString();
+                    confirmationTokens.put(token, email + "|" + deviceId);
+
+                    // Тут ти можеш замість print — реалізувати надсилання листа
+                    System.out.println("🔒 Потрібне підтвердження. Посилання: https://your-server/confirm?token=" + token);
+
+                    return Map.of(
+                            "activated", false,
+                            "confirm_needed", true,
+                            "message", "This email is already activated on another device. Confirmation required."
+                    );
+                }
+                return Map.of("activated", true);
             }
+
             emailDeviceMap.put(email, deviceId);
             return Map.of("activated", true);
         }
-        return Map.of("message", "Email not found in the database.", "activated", false);
+
+        return Map.of("activated", false, "message", "Email not found in the database.");
     }
 
+    @GetMapping("/confirm")
+    public ResponseEntity<String> confirmDeviceChange(@RequestParam("token") String token) {
+        if (!confirmationTokens.containsKey(token)) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("❌ Invalid or expired token.");
+        }
+
+        String[] parts = confirmationTokens.get(token).split("\\|");
+        String email = parts[0];
+        String newDeviceId = parts[1];
+
+        emailDeviceMap.put(email, newDeviceId);
+        confirmationTokens.remove(token);
+
+        return ResponseEntity.ok("✅ Device successfully updated for " + email);
+    }
 
 
     @PostMapping("/check-activation")
