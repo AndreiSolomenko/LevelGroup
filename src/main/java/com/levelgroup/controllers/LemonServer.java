@@ -1,6 +1,7 @@
 package com.levelgroup.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.web.bind.annotation.*;
 import javax.crypto.Mac;
@@ -21,6 +22,10 @@ import java.nio.charset.StandardCharsets;
 
 @RestController
 public class LemonServer {
+
+    @Autowired
+    private MailService mailService;
+
     private static final String LEMON_SECRET = "qazwsx";
 
     private static final Set<String> activatedEmails = new HashSet<>();
@@ -91,8 +96,9 @@ public class LemonServer {
                     String token = UUID.randomUUID().toString();
                     confirmationTokens.put(token, email + "|" + deviceId);
 
-                    // Тут ти можеш замість print — реалізувати надсилання листа
-                    System.out.println("🔒 Потрібне підтвердження. Посилання: https://your-server/confirm?token=" + token);
+                    mailService.sendConfirmationEmail(email, token);
+
+                    System.out.println("🔒 Відправлено на підтвердження: " + token);
 
                     return Map.of(
                             "activated", false,
