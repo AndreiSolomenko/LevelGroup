@@ -62,12 +62,14 @@ public class LemonServer {
                 Map<String, Object> data = (Map<String, Object>) payload.get("data");
                 Map<String, Object> attributes = (Map<String, Object>) data.get("attributes");
                 String email = (String) attributes.get("user_email");
+                String deviceId = (String) attributes.get("device_id");
 
-                if (email != null) {
-                    activatedEmails.add(email);
-                    System.out.println("✅ Користувач активований: " + email);
+                if (email != null && deviceId != null) {
+                    activatedEmails.add(email); // Додаємо email в список активованих користувачів
+                    emailDeviceMap.put(email, deviceId); // Зберігаємо пару email - device_id
+                    System.out.println("✅ Користувач активований: " + email + " для пристрою " + deviceId);
                 } else {
-                    System.out.println("⚠️ Email не знайдено у вебхуці.");
+                    System.out.println("⚠️ Email або device_id не знайдено у вебхуці.");
                 }
             } else {
                 System.out.println("ℹ️ Інша подія, ігноруємо.");
