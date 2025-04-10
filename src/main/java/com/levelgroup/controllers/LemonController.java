@@ -17,9 +17,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.web.client.RestTemplate;
 import java.nio.charset.StandardCharsets;
 
+@RestController
 public class LemonController {
 
-    private static final String API_KEY= "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiI5NGQ1OWNlZi1kYmI4LTRlYTUtYjE3OC1kMjU0MGZjZDY5MTkiLCJqdGkiOiJmMTRmYjU2ZTBiMjE2YmIyOGRkMzlmNjRhYTUwZTU3ODZjYTJhZGY0MWJkOWVkMzk4MmYwMzY4ZGNhYjM0MzIxMWMxNTIwNTgwMjhjMzdmMCIsImlhdCI6MTc0NDMwMDUxOS44MTI1NCwibmJmIjoxNzQ0MzAwNTE5LjgxMjU0MywiZXhwIjoyMDU5ODMzMzE5Ljc4MzMxNCwic3ViIjoiNDU0MDE0MCIsInNjb3BlcyI6W119.T8z6EP6bY9HkWjhgAI0opiIEluJXx2GplqULpdUi3ACxA3o8JR7GcffRER_EeTGgh21KWf4v1zh_XZw1D0nAAHUUoDuAe7Ux57ZG2kBJPxp0uYujBIxIN0h2Hs1l_hecAOGE0gcl_j7Cdu2lo2unLriKccPr_lEjOs_eJSd64ZlwpTbckyEbvR82mwEWvx3phTSyDw2rhpRuLPzrH9qLbeBpICHupCMRzdQ0GYevqfLeE40Oe8gsK7OdMttkUXdLsyQeHT0dgpIHwlUxZspyHNi5MnJHvdwiGss_VVjig8hy-1IcymIgYdD1OvatFAojW13KWFXVUCm83FUWVQMYjNrQmzZ9YK6ZgYHT7ZauTCXGZrFkIS7eDpaTxTAO21WGK_KLrINAfRI5n_tfkUs7pam9PPbg7ldDm0d5nt8esJYbg5VoFASXQaQ9hSxISQEfthEwEvOmiZW2Hhlm1kX5KooibOpzFRZoo6n7cuo21z_v7Aa4ZvKTnsrSJWRR6Yhc";
     private static final String LEMON_SECRET = "qazwsx";
     private static final Set<String> activatedEmails = new HashSet<>();
     private static final Map<String, String> emailDeviceMap = new HashMap<>();
@@ -81,25 +81,14 @@ public class LemonController {
         }
     }
 
-    private String getLicenseKeyFromOrder(String orderId) {
-        String url = "https://api.lemonsqueezy.com/v1/orders/" + orderId + "/relationships/license-keys";
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Authorization", "Bearer " + API_KEY);
 
-        // Виконуємо запит до Lemon Squeezy API для отримання ліцензійного ключа
-        try {
-            ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.GET, new HttpEntity<>(headers), Map.class);
-            Map<String, Object> licenseKeys = (Map<String, Object>) response.getBody().get("data");
-
-            if (licenseKeys != null && !licenseKeys.isEmpty()) {
-                Map<String, Object> firstLicenseKey = (Map<String, Object>) licenseKeys.get(0);
-                return (String) firstLicenseKey.get("id");
-            }
-        } catch (Exception e) {
-            System.out.println("❌ Помилка при отриманні ліцензійного ключа: " + e.getMessage());
-        }
-        return null;
+    @GetMapping("/check-activation-new")
+    public ResponseEntity<Map<String, Object>> checkActivation(@RequestParam("device_id") String deviceId) {
+        boolean isActivated = emailDeviceMap.containsValue(deviceId);
+        return ResponseEntity.ok(Map.of("activated", isActivated));
     }
+
+
 
 
 
@@ -123,8 +112,5 @@ public class LemonController {
         }
         return hexString.toString();
     }
-
-
-
 
 }
