@@ -79,7 +79,7 @@ public class LemonServer {
     }
 
     private String getLicenseKeyFromOrder(String orderId) {
-        String url = "https://api.lemonsqueezy.com/v1/orders/" + orderId + "/relationships/license-keys";
+        String url = "https://api.lemonsqueezy.com/v1/orders/" + orderId + "/license-keys";
         HttpHeaders headers = new HttpHeaders();
         headers.set("Authorization", "Bearer " + API_KEY);
         // Виконуємо запит до Lemon Squeezy API для отримання ліцензійного ключа
