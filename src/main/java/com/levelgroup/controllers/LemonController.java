@@ -85,6 +85,7 @@ public class LemonController {
     @GetMapping("/check-activation-new")
     public ResponseEntity<Map<String, Object>> checkActivation(@RequestParam("device_id") String deviceId) {
         boolean isActivated = emailDeviceMap.containsValue(deviceId);
+        System.out.println("Запит на перевірку" + isActivated);
         return ResponseEntity.ok(Map.of("activated", isActivated));
     }
 
