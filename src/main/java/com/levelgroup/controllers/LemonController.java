@@ -1,6 +1,7 @@
 package com.levelgroup.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.levelgroup.DeviceInfo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.http.*;
@@ -26,9 +27,32 @@ public class LemonController {
     private static final Map<String, String> confirmationTokens = new HashMap<>();
     private static final RestTemplate restTemplate = new RestTemplate();
 
+    private static final Map<String, DeviceInfo> registeredDevices = new HashMap<>();
+
     public static void main(String[] args) {
         SpringApplication.run(LemonServer.class, args);
     }
+
+
+    @PostMapping("/device-register")
+    public ResponseEntity<Map<String, String>> registerDevice(@RequestBody Map<String, String> body, HttpServletRequest request) {
+        String deviceId = body.get("device_id");
+        if (deviceId == null || deviceId.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Missing device_id"));
+        }
+
+        String ipAddress = request.getRemoteAddr();
+
+        if (!registeredDevices.containsKey(deviceId)) {
+            registeredDevices.put(deviceId, new DeviceInfo(deviceId, ipAddress));
+            System.out.println("📥 Зареєстровано новий пристрій: " + deviceId + " з IP: " + ipAddress);
+        }
+
+        return ResponseEntity.ok(Map.of("message", "Device registered successfully"));
+    }
+
+
+
 
     @PostMapping("/webhook-new")
     public ResponseEntity<Map<String, String>> handleWebhook(HttpServletRequest request) {
@@ -68,6 +92,13 @@ public class LemonController {
                 if (email != null && deviceId != null) {
                     activatedEmails.add(email);
                     emailDeviceMap.put(email, deviceId);
+
+                    DeviceInfo info = registeredDevices.get(deviceId);
+                    if (info != null) {
+                        info.permanentlyActivated = true;
+                        info.temporarilyActivated = false; // можна вимкнути тимчасову, якщо хочеш
+                    }
+
                     System.out.println("✅ Користувач активований НОВИЙ КОНТРОЛЛЕР: " + email + " для пристрою " + deviceId);
                 } else {
                     System.out.println("⚠️ Email або device_id не знайдено у вебхуці.");
@@ -84,9 +115,28 @@ public class LemonController {
 
     @GetMapping("/check-activation-new")
     public ResponseEntity<Map<String, Object>> checkActivation(@RequestParam("device_id") String deviceId) {
-        boolean isActivated = emailDeviceMap.containsValue(deviceId);
-        System.out.println("Запит на перевірку" + isActivated);
-        return ResponseEntity.ok(Map.of("activated", isActivated));
+        DeviceInfo info = registeredDevices.get(deviceId);
+
+        if (info == null) {
+            return ResponseEntity.ok(Map.of("activated", false));
+        }
+
+        // Якщо вже повна активація — завжди true
+        if (info.permanentlyActivated || emailDeviceMap.containsValue(deviceId)) {
+            info.permanentlyActivated = true;
+            return ResponseEntity.ok(Map.of("activated", true));
+        }
+
+        info.checkCounter++;
+
+        if (info.temporarilyActivated && info.checkCounter <= 10) {
+            System.out.println("🔓 Тимчасова активація для " + deviceId + ", лічильник: " + info.checkCounter);
+            return ResponseEntity.ok(Map.of("activated", true));
+        }
+
+        info.temporarilyActivated = false;
+        System.out.println("⛔ Тимчасова активація завершена для " + deviceId);
+        return ResponseEntity.ok(Map.of("activated", false));
     }
 
 
