@@ -2,6 +2,8 @@ package com.levelgroup.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.levelgroup.DeviceInfo;
+import com.levelgroup.DeviceInfoRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
@@ -12,51 +14,35 @@ import java.util.*;
 import org.springframework.util.StreamUtils;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.util.StreamUtils;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.web.client.RestTemplate;
 import java.nio.charset.StandardCharsets;
 
 @RestController
 public class LemonController {
 
+    @Autowired
+    private DeviceInfoRepository deviceRepo;
+
     private static final String LEMON_SECRET = "qazwsx";
-    private static final Set<String> activatedEmails = new HashSet<>();
-    private static final Map<String, String> emailDeviceMap = new HashMap<>();
-    private static final Map<String, DeviceInfo> registeredDevices = new HashMap<>();
-    public static void main(String[] args) {
-        SpringApplication.run(LemonServer.class, args);
-    }
 
     @PostMapping("/device-register")
-    public ResponseEntity<Map<String, String>> registerDevice(@RequestBody Map<String, String> body, HttpServletRequest request) {
+    public ResponseEntity<Map<String, String>> registerDevice(@RequestBody Map<String, String> body) {
         String deviceId = body.get("device_id");
         if (deviceId == null || deviceId.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("error", "Missing device_id"));
         }
 
-        String ipAddress = request.getRemoteAddr();
-
-        if (!registeredDevices.containsKey(deviceId)) {
-            // 🔍 Перевірка, чи IP вже використовувався
-            boolean ipAlreadyUsed = registeredDevices.values().stream()
-                    .anyMatch(info -> info.ip.equals(ipAddress));
-
-            DeviceInfo newDevice = new DeviceInfo(deviceId, ipAddress);
-
-            if (!ipAlreadyUsed) {
-                newDevice.temporarilyActivated = true;
-                System.out.println("🆓 Надано 10 безкоштовних перевірок для нового IP: " + ipAddress);
-            } else {
-                newDevice.temporarilyActivated = false;
-                System.out.println("⚠️ IP " + ipAddress + " вже використовувався. Безкоштовна активація не надана.");
-            }
-
-            registeredDevices.put(deviceId, newDevice);
-            System.out.println("📥 Зареєстровано новий пристрій: " + deviceId + " з IP: " + ipAddress);
+        Optional<DeviceInfo> existing = deviceRepo.findById(deviceId);
+        if (existing.isEmpty()) {
+            DeviceInfo newDevice = new DeviceInfo(deviceId);
+            deviceRepo.save(newDevice);
+            System.out.println("📥 Зареєстровано новий пристрій: " + deviceId);
         }
 
         return ResponseEntity.ok(Map.of("message", "Device registered successfully"));
     }
-
-
 
     @PostMapping("/webhook-new")
     public ResponseEntity<Map<String, String>> handleWebhook(HttpServletRequest request) {
@@ -68,12 +54,10 @@ public class LemonController {
 
             String rawBody = StreamUtils.copyToString(request.getInputStream(), StandardCharsets.UTF_8);
             String computedSignature = hmacSha256(LEMON_SECRET, rawBody);
-
             if (!computedSignature.equals(signature)) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Invalid signature"));
             }
 
-            // Парсимо тіло в JSON
             Map<String, Object> payload = new ObjectMapper().readValue(rawBody, Map.class);
             String eventName = (String) ((Map<String, Object>) payload.get("meta")).get("event_name");
 
@@ -81,70 +65,60 @@ public class LemonController {
                 Map<String, Object> data = (Map<String, Object>) payload.get("data");
                 Map<String, Object> attributes = (Map<String, Object>) data.get("attributes");
                 String email = (String) attributes.get("user_email");
-                String orderId = (String) attributes.get("identifier");
 
-                // Отримуємо custom_data з мета
                 Map<String, Object> meta = (Map<String, Object>) payload.get("meta");
                 Map<String, Object> customData = (Map<String, Object>) meta.get("custom_data");
-                String deviceId = null;
-
-                if (customData != null && customData.containsKey("device_id")) {
-                    deviceId = (String) customData.get("device_id");
-                }
+                String deviceId = (String) customData.get("device_id");
 
                 if (email != null && deviceId != null) {
-                    activatedEmails.add(email);
-                    emailDeviceMap.put(email, deviceId);
-
-                    DeviceInfo info = registeredDevices.get(deviceId);
-                    if (info != null) {
-                        info.permanentlyActivated = true;
-                        info.temporarilyActivated = false; // можна вимкнути тимчасову, якщо хочеш
+                    Optional<DeviceInfo> infoOpt = deviceRepo.findById(deviceId);
+                    if (infoOpt.isPresent()) {
+                        DeviceInfo info = infoOpt.get();
+                        info.setEmail(email);
+                        info.setPermanentlyActivated(true);
+                        info.setTemporarilyActivated(false);
+                        deviceRepo.save(info);
+                        System.out.println("✅ Користувач активований: " + email + " для пристрою " + deviceId);
+                    } else {
+                        System.out.println("⚠️ Пристрій не знайдено у базі: " + deviceId);
                     }
-
-                    System.out.println("✅ Користувач активований НОВИЙ КОНТРОЛЛЕР: " + email + " для пристрою " + deviceId);
-                } else {
-                    System.out.println("⚠️ Email або device_id не знайдено у вебхуці.");
                 }
             }
 
             return ResponseEntity.ok(Map.of("message", "Webhook received successfully"));
-
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "Internal server error"));
         }
     }
 
-
-
     @GetMapping("/check-activation-new")
     public ResponseEntity<Map<String, Object>> checkActivation(@RequestParam("device_id") String deviceId) {
-        DeviceInfo info = registeredDevices.get(deviceId);
+        Optional<DeviceInfo> infoOpt = deviceRepo.findById(deviceId);
 
-        if (info == null) {
+        if (infoOpt.isEmpty()) {
             return ResponseEntity.ok(Map.of("activated", false));
         }
 
-        // Якщо вже повна активація — завжди true
-        if (info.permanentlyActivated || emailDeviceMap.containsValue(deviceId)) {
-            info.permanentlyActivated = true;
+        DeviceInfo info = infoOpt.get();
+
+        if (info.isPermanentlyActivated()) {
             return ResponseEntity.ok(Map.of("activated", true));
         }
 
-        info.checkCounter++;
-
-        if (info.temporarilyActivated && info.checkCounter <= 10) {
-            System.out.println("🔓 Тимчасова активація для " + deviceId + ", лічильник: " + info.checkCounter);
+        if (info.isTemporarilyActivated() && info.getCheckCounter() < 10) {
+            info.setCheckCounter(info.getCheckCounter() + 1);
+            deviceRepo.save(info);
+            System.out.println("🔓 Тимчасова активація для " + deviceId + ", лічильник: " + info.getCheckCounter());
             return ResponseEntity.ok(Map.of("activated", true));
         }
 
-        info.temporarilyActivated = false;
+        info.setTemporarilyActivated(false);
+        deviceRepo.save(info);
         System.out.println("⛔ Тимчасова активація завершена для " + deviceId);
         return ResponseEntity.ok(Map.of("activated", false));
     }
 
-
-
+    // хелпер для підпису
     private static String hmacSha256(String secret, String data) {
         try {
             Mac sha256_HMAC = Mac.getInstance("HmacSHA256");
@@ -165,5 +139,4 @@ public class LemonController {
         }
         return hexString.toString();
     }
-
 }

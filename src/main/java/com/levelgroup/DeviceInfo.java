@@ -1,14 +1,57 @@
 package com.levelgroup;
 
-public class DeviceInfo {
-    public final String deviceId;
-    public final String ip;
-    public int checkCounter = 0;
-    public boolean permanentlyActivated = false;
-    public boolean temporarilyActivated = true; // нове поле
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
 
-    public DeviceInfo(String deviceId, String ip) {
+@Entity
+public class DeviceInfo {
+
+    @Id
+    private String deviceId;
+
+    private String email; // може бути null до покупки
+    private int checkCounter = 0;
+    private boolean permanentlyActivated = false;
+    private boolean temporarilyActivated = true;
+
+    public DeviceInfo() {}
+
+    public DeviceInfo(String deviceId) {
         this.deviceId = deviceId;
-        this.ip = ip;
+        this.temporarilyActivated = true;
     }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public int getCheckCounter() {
+        return checkCounter;
+    }
+
+    public void setCheckCounter(int checkCounter) {
+        this.checkCounter = checkCounter;
+    }
+
+    public boolean isPermanentlyActivated() {
+        return permanentlyActivated;
+    }
+
+    public void setPermanentlyActivated(boolean permanentlyActivated) {
+        this.permanentlyActivated = permanentlyActivated;
+    }
+
+    public boolean isTemporarilyActivated() {
+        return temporarilyActivated;
+    }
+
+    public void setTemporarilyActivated(boolean temporarilyActivated) {
+        this.temporarilyActivated = temporarilyActivated;
+    }
+
+    // Геттери та сеттери
 }
