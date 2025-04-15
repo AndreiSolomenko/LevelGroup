@@ -2,7 +2,6 @@ package com.levelgroup.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.levelgroup.DeviceInfo;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
@@ -13,9 +12,6 @@ import java.util.*;
 import org.springframework.util.StreamUtils;
 
 import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.util.StreamUtils;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.web.client.RestTemplate;
 import java.nio.charset.StandardCharsets;
 
 @RestController
@@ -24,15 +20,10 @@ public class LemonController {
     private static final String LEMON_SECRET = "qazwsx";
     private static final Set<String> activatedEmails = new HashSet<>();
     private static final Map<String, String> emailDeviceMap = new HashMap<>();
-    private static final Map<String, String> confirmationTokens = new HashMap<>();
-    private static final RestTemplate restTemplate = new RestTemplate();
-
     private static final Map<String, DeviceInfo> registeredDevices = new HashMap<>();
-
     public static void main(String[] args) {
         SpringApplication.run(LemonServer.class, args);
     }
-
 
     @PostMapping("/device-register")
     public ResponseEntity<Map<String, String>> registerDevice(@RequestBody Map<String, String> body, HttpServletRequest request) {
@@ -44,13 +35,26 @@ public class LemonController {
         String ipAddress = request.getRemoteAddr();
 
         if (!registeredDevices.containsKey(deviceId)) {
-            registeredDevices.put(deviceId, new DeviceInfo(deviceId, ipAddress));
+            // 🔍 Перевірка, чи IP вже використовувався
+            boolean ipAlreadyUsed = registeredDevices.values().stream()
+                    .anyMatch(info -> info.ip.equals(ipAddress));
+
+            DeviceInfo newDevice = new DeviceInfo(deviceId, ipAddress);
+
+            if (!ipAlreadyUsed) {
+                newDevice.temporarilyActivated = true;
+                System.out.println("🆓 Надано 10 безкоштовних перевірок для нового IP: " + ipAddress);
+            } else {
+                newDevice.temporarilyActivated = false;
+                System.out.println("⚠️ IP " + ipAddress + " вже використовувався. Безкоштовна активація не надана.");
+            }
+
+            registeredDevices.put(deviceId, newDevice);
             System.out.println("📥 Зареєстровано новий пристрій: " + deviceId + " з IP: " + ipAddress);
         }
 
         return ResponseEntity.ok(Map.of("message", "Device registered successfully"));
     }
-
 
 
 
@@ -88,7 +92,6 @@ public class LemonController {
                     deviceId = (String) customData.get("device_id");
                 }
 
-
                 if (email != null && deviceId != null) {
                     activatedEmails.add(email);
                     emailDeviceMap.put(email, deviceId);
@@ -111,6 +114,7 @@ public class LemonController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "Internal server error"));
         }
     }
+
 
 
     @GetMapping("/check-activation-new")
@@ -138,8 +142,6 @@ public class LemonController {
         System.out.println("⛔ Тимчасова активація завершена для " + deviceId);
         return ResponseEntity.ok(Map.of("activated", false));
     }
-
-
 
 
 
