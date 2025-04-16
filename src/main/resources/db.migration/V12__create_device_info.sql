@@ -1,5 +1,6 @@
 CREATE TABLE device_info (
-    device_id VARCHAR(255) PRIMARY KEY,
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    device_id VARCHAR(255),
     email VARCHAR(255),
     check_counter INT DEFAULT 0,
     permanently_activated BOOLEAN DEFAULT FALSE,
