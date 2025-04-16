@@ -1,19 +1,28 @@
 package com.levelgroup;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 
 @Entity
 @Table(name = "device_info")
 public class DeviceInfo {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "device_id")
     private String deviceId;
 
-    private String email; // може бути null до покупки
+    @Column(name = "email")
+    private String email;
+
+    @Column(name = "check_counter")
     private int checkCounter = 0;
+
+    @Column(name = "permanently_activated")
     private boolean permanentlyActivated = false;
+
+    @Column(name = "temporarily_activated")
     private boolean temporarilyActivated = true;
 
     public DeviceInfo() {}
@@ -21,6 +30,14 @@ public class DeviceInfo {
     public DeviceInfo(String deviceId) {
         this.deviceId = deviceId;
         this.temporarilyActivated = true;
+    }
+
+    public String getDeviceId() {
+        return deviceId;
+    }
+
+    public void setDeviceId(String deviceId) {
+        this.deviceId = deviceId;
     }
 
     public String getEmail() {
@@ -55,5 +72,4 @@ public class DeviceInfo {
         this.temporarilyActivated = temporarilyActivated;
     }
 
-    // Геттери та сеттери
 }

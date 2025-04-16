@@ -34,7 +34,7 @@ public class LemonController {
             return ResponseEntity.badRequest().body(Map.of("error", "Missing device_id"));
         }
 
-        Optional<DeviceInfo> existing = deviceRepo.findById(deviceId);
+        Optional<DeviceInfo> existing = deviceRepo.findByDeviceId(deviceId);
         if (existing.isEmpty()) {
             DeviceInfo newDevice = new DeviceInfo(deviceId);
             deviceRepo.save(newDevice);
@@ -71,7 +71,7 @@ public class LemonController {
                 String deviceId = (String) customData.get("device_id");
 
                 if (email != null && deviceId != null) {
-                    Optional<DeviceInfo> infoOpt = deviceRepo.findById(deviceId);
+                    Optional<DeviceInfo> infoOpt = deviceRepo.findByDeviceId(deviceId);
                     if (infoOpt.isPresent()) {
                         DeviceInfo info = infoOpt.get();
                         info.setEmail(email);
@@ -93,7 +93,7 @@ public class LemonController {
 
     @GetMapping("/check-activation-new")
     public ResponseEntity<Map<String, Object>> checkActivation(@RequestParam("device_id") String deviceId) {
-        Optional<DeviceInfo> infoOpt = deviceRepo.findById(deviceId);
+        Optional<DeviceInfo> infoOpt = deviceRepo.findByDeviceId(deviceId);
 
         if (infoOpt.isEmpty()) {
             return ResponseEntity.ok(Map.of("activated", false));
