@@ -124,31 +124,44 @@ public class LemonController {
         String email = deviceInfo.getEmail();
         String deviceId = deviceInfo.getDeviceId();
 
-        // Перевіряємо, чи є хоча б один пристрій з таким email
-        List<DeviceInfo> existingDevices = deviceRepo.findAllByEmail(email);
+        // 1. Знаходимо всі пристрої з таким email
+        List<DeviceInfo> existingByEmail = deviceRepo.findAllByEmail(email);
 
-        if (existingDevices.isEmpty()) {
+        if (existingByEmail.isEmpty()) {
             // Email ще не використовувався — користувач не купував
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Email not found. Purchase required.");
         }
 
-        // Якщо такий deviceId вже є, повертаємо true
-        boolean alreadyAuthorized = existingDevices.stream()
-                .anyMatch(d -> d.getDeviceId().equals(deviceId) && d.isPermanentlyActivated());
+        // 2. Перевіряємо, чи хоча б один з них активований
+        boolean isEmailActivated = existingByEmail.stream().anyMatch(DeviceInfo::isPermanentlyActivated);
 
-        if (alreadyAuthorized) {
-            return ResponseEntity.ok("true");
+        if (!isEmailActivated) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Email is not activated.");
         }
 
-        // Інакше додаємо новий deviceId для існуючого email
-        DeviceInfo newDevice = new DeviceInfo();
-        newDevice.setEmail(email);
-        newDevice.setDeviceId(deviceId);
-        newDevice.setPermanentlyActivated(true);
-        newDevice.setCheckCounter(0);
+        // 3. Шукаємо пристрій за deviceId
+        Optional<DeviceInfo> existingDevice = deviceRepo.findByDeviceId(deviceId);
 
-        deviceRepo.save(newDevice);
+        if (existingDevice.isPresent()) {
+            // 4a. Оновлюємо існуючий запис
+            DeviceInfo info = existingDevice.get();
+            info.setEmail(email);
+            info.setPermanentlyActivated(true);
+            info.setTemporarilyActivated(false);
+            info.setCheckCounter(0);
+            deviceRepo.save(info);
+        } else {
+            // 4b. Створюємо новий запис
+            DeviceInfo newDevice = new DeviceInfo();
+            newDevice.setDeviceId(deviceId);
+            newDevice.setEmail(email);
+            newDevice.setPermanentlyActivated(true);
+            newDevice.setTemporarilyActivated(false);
+            newDevice.setCheckCounter(0);
+            deviceRepo.save(newDevice);
+        }
 
+        System.out.println("✅ Активація пристрою " + deviceId + " для email: " + email);
         return ResponseEntity.ok("true");
     }
 
