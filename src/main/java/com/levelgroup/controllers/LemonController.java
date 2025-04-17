@@ -118,6 +118,42 @@ public class LemonController {
         return ResponseEntity.ok(Map.of("activated", false));
     }
 
+
+    @PostMapping("/authorize")
+    public ResponseEntity<String> authorize(@RequestBody DeviceInfo deviceInfo) {
+        String email = deviceInfo.getEmail();
+        String deviceId = deviceInfo.getDeviceId();
+
+        // Перевіряємо, чи є хоча б один пристрій з таким email
+        List<DeviceInfo> existingDevices = deviceRepo.findAllByEmail(email);
+
+        if (existingDevices.isEmpty()) {
+            // Email ще не використовувався — користувач не купував
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Email not found. Purchase required.");
+        }
+
+        // Якщо такий deviceId вже є, повертаємо true
+        boolean alreadyAuthorized = existingDevices.stream()
+                .anyMatch(d -> d.getDeviceId().equals(deviceId) && d.isPermanentlyActivated());
+
+        if (alreadyAuthorized) {
+            return ResponseEntity.ok("true");
+        }
+
+        // Інакше додаємо новий deviceId для існуючого email
+        DeviceInfo newDevice = new DeviceInfo();
+        newDevice.setEmail(email);
+        newDevice.setDeviceId(deviceId);
+        newDevice.setPermanentlyActivated(true);
+        newDevice.setCheckCounter(0);
+
+        deviceRepo.save(newDevice);
+
+        return ResponseEntity.ok("true");
+    }
+
+
+
     // хелпер для підпису
     private static String hmacSha256(String secret, String data) {
         try {
