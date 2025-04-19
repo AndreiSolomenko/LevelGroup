@@ -25,6 +25,9 @@ public class DeviceInfo {
     @Column(name = "temporarily_activated")
     private boolean temporarilyActivated = true;
 
+    @Column(name = "country")
+    private String country;
+
     public DeviceInfo() {}
 
     public DeviceInfo(String deviceId) {
@@ -70,6 +73,14 @@ public class DeviceInfo {
 
     public void setTemporarilyActivated(boolean temporarilyActivated) {
         this.temporarilyActivated = temporarilyActivated;
+    }
+
+    public String getCountry() {
+        return country;
+    }
+
+    public void setCountry(String country) {
+        this.country = country;
     }
 
 }

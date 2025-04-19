@@ -28,7 +28,7 @@ public class LemonController {
     private static final String LEMON_SECRET = "qazwsx";
 
     @PostMapping("/device-register")
-    public ResponseEntity<Map<String, String>> registerDevice(@RequestBody Map<String, String> body) {
+    public ResponseEntity<Map<String, String>> registerDevice(@RequestBody Map<String, String> body, HttpServletRequest request) {
         String deviceId = body.get("device_id");
         if (deviceId == null || deviceId.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("error", "Missing device_id"));
@@ -37,8 +37,26 @@ public class LemonController {
         Optional<DeviceInfo> existing = deviceRepo.findByDeviceId(deviceId);
         if (existing.isEmpty()) {
             DeviceInfo newDevice = new DeviceInfo(deviceId);
+
+            // Отримуємо IP
+            String ipAddress = request.getHeader("X-Forwarded-For");
+            if (ipAddress == null) {
+                ipAddress = request.getRemoteAddr();
+            }
+
+            // Визначаємо країну
+            try {
+                RestTemplate restTemplate = new RestTemplate();
+                String url = "http://ip-api.com/json/" + ipAddress;
+                ResponseEntity<Map> geoResponse = restTemplate.getForEntity(url, Map.class);
+                String country = (String) geoResponse.getBody().get("country");
+                newDevice.setCountry(country);
+            } catch (Exception e) {
+                System.out.println("⚠️ Неможливо визначити країну для IP: " + ipAddress);
+            }
+
             deviceRepo.save(newDevice);
-            System.out.println("📥 Зареєстровано новий пристрій: " + deviceId);
+            System.out.println("📥 Зареєстровано новий пристрій: " + deviceId + "Країна: " + newDevice.getCountry());
         }
 
         return ResponseEntity.ok(Map.of("message", "Device registered successfully"));
