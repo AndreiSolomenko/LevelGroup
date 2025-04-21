@@ -17,6 +17,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.util.StreamUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.servlet.ModelAndView;
+
 import java.nio.charset.StandardCharsets;
 
 @RestController
@@ -183,6 +185,13 @@ public class LemonController {
         return ResponseEntity.ok("true");
     }
 
+    @GetMapping("/devices")
+    public ModelAndView showAllDevices() {
+        List<DeviceInfo> devices = deviceRepo.findAll();
+        ModelAndView mav = new ModelAndView("devices"); // назва HTML-шаблону
+        mav.addObject("devices", devices);
+        return mav;
+    }
 
 
     // хелпер для підпису
