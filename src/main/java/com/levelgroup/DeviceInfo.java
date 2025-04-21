@@ -35,6 +35,14 @@ public class DeviceInfo {
         this.temporarilyActivated = true;
     }
 
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
     public String getDeviceId() {
         return deviceId;
     }
