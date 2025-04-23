@@ -2,6 +2,8 @@ package com.levelgroup;
 
 import jakarta.persistence.*;
 
+import java.time.LocalDate;
+
 @Entity
 @Table(name = "device_info")
 public class DeviceInfo {
@@ -27,6 +29,9 @@ public class DeviceInfo {
 
     @Column(name = "country")
     private String country;
+
+    @Column(name = "subscription_until")
+    private LocalDate subscriptionUntil;
 
     public DeviceInfo() {}
 
@@ -89,6 +94,14 @@ public class DeviceInfo {
 
     public void setCountry(String country) {
         this.country = country;
+    }
+
+    public LocalDate getSubscriptionUntil() {
+        return subscriptionUntil;
+    }
+
+    public void setSubscriptionUntil(LocalDate subscriptionUntil) {
+        this.subscriptionUntil = subscriptionUntil;
     }
 
 }

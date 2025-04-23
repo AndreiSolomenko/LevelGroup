@@ -5,5 +5,6 @@ CREATE TABLE device_info (
     check_counter INT DEFAULT 0,
     permanently_activated BOOLEAN DEFAULT FALSE,
     temporarily_activated BOOLEAN DEFAULT TRUE,
-    country VARCHAR(255)
+    country VARCHAR(255),
+    subscription_until DATE
 );
