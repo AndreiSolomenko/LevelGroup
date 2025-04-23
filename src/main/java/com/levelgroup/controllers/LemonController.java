@@ -9,7 +9,6 @@ import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
-import java.time.LocalDate;
 import java.util.*;
 
 import org.springframework.util.StreamUtils;
@@ -85,37 +84,21 @@ public class LemonController {
             if ("order_created".equals(eventName) || "order_paid".equals(eventName)) {
                 Map<String, Object> data = (Map<String, Object>) payload.get("data");
                 Map<String, Object> attributes = (Map<String, Object>) data.get("attributes");
-
                 String email = (String) attributes.get("user_email");
-                String productName = (String) attributes.get("product_name");
 
                 Map<String, Object> meta = (Map<String, Object>) payload.get("meta");
                 Map<String, Object> customData = (Map<String, Object>) meta.get("custom_data");
                 String deviceId = (String) customData.get("device_id");
 
-                if (email != null && deviceId != null && productName != null) {
+                if (email != null && deviceId != null) {
                     Optional<DeviceInfo> infoOpt = deviceRepo.findByDeviceId(deviceId);
                     if (infoOpt.isPresent()) {
                         DeviceInfo info = infoOpt.get();
                         info.setEmail(email);
+                        info.setPermanentlyActivated(true);
                         info.setTemporarilyActivated(false);
-
-                        LocalDate now = LocalDate.now();
-
-                        if (productName.contains("MONTHLY PLAN")) {
-                            info.setSubscriptionUntil(now.plusMonths(1));
-                            info.setPermanentlyActivated(false);
-                        } else if (productName.contains("YEARLY PLAN")) {
-                            info.setSubscriptionUntil(now.plusYears(1));
-                            info.setPermanentlyActivated(false);
-                        } else if (productName.contains("LIFETIME PLAN")) {
-                            info.setPermanentlyActivated(true);
-                            info.setSubscriptionUntil(null);
-                        }
-
                         deviceRepo.save(info);
-
-                        System.out.println("✅ Користувач активований: " + email + " для пристрою " + deviceId + ". Продукт: " + productName);
+                        System.out.println("✅ Користувач активований: " + email + " для пристрою " + deviceId);
                     } else {
                         System.out.println("⚠️ Пристрій не знайдено у базі: " + deviceId);
                     }
@@ -139,10 +122,6 @@ public class LemonController {
         DeviceInfo info = infoOpt.get();
 
         if (info.isPermanentlyActivated()) {
-            return ResponseEntity.ok(Map.of("activated", true));
-        }
-
-        if (info.getSubscriptionUntil() != null && LocalDate.now().isBefore(info.getSubscriptionUntil())) {
             return ResponseEntity.ok(Map.of("activated", true));
         }
 
