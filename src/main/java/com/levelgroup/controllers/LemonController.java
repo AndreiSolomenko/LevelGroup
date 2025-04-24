@@ -185,7 +185,11 @@ public class LemonController {
         }
 
         // 2. Перевіряємо, чи хоча б один з них активований
-        boolean isEmailActivated = existingByEmail.stream().anyMatch(DeviceInfo::isPermanentlyActivated);
+        boolean isEmailActivated = existingByEmail.stream().anyMatch(info ->
+                info.isPermanentlyActivated() ||
+                        (info.getSubscriptionUntil() != null && LocalDate.now().isBefore(info.getSubscriptionUntil())) ||
+                        (info.isTemporarilyActivated() && info.getCheckCounter() < 10)
+        );
 
         if (!isEmailActivated) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Email is not activated.");
@@ -195,21 +199,39 @@ public class LemonController {
         Optional<DeviceInfo> existingDevice = deviceRepo.findByDeviceId(deviceId);
 
         if (existingDevice.isPresent()) {
-            // 4a. Оновлюємо існуючий запис
             DeviceInfo info = existingDevice.get();
             info.setEmail(email);
-            info.setPermanentlyActivated(true);
-            info.setTemporarilyActivated(false);
             info.setCheckCounter(0);
+
+            // Копіюємо тип активації з активованих пристроїв
+            DeviceInfo source = existingByEmail.stream().filter(e ->
+                    e.isPermanentlyActivated() ||
+                            (e.getSubscriptionUntil() != null && LocalDate.now().isBefore(e.getSubscriptionUntil())) ||
+                            (e.isTemporarilyActivated() && e.getCheckCounter() < 10)
+            ).findFirst().get();
+
+            info.setPermanentlyActivated(source.isPermanentlyActivated());
+            info.setTemporarilyActivated(source.isTemporarilyActivated());
+            info.setSubscriptionUntil(source.getSubscriptionUntil());
+
             deviceRepo.save(info);
         } else {
-            // 4b. Створюємо новий запис
             DeviceInfo newDevice = new DeviceInfo();
             newDevice.setDeviceId(deviceId);
             newDevice.setEmail(email);
-            newDevice.setPermanentlyActivated(true);
-            newDevice.setTemporarilyActivated(false);
             newDevice.setCheckCounter(0);
+
+            // Копіюємо з активного пристрою
+            DeviceInfo source = existingByEmail.stream().filter(e ->
+                    e.isPermanentlyActivated() ||
+                            (e.getSubscriptionUntil() != null && LocalDate.now().isBefore(e.getSubscriptionUntil())) ||
+                            (e.isTemporarilyActivated() && e.getCheckCounter() < 10)
+            ).findFirst().get();
+
+            newDevice.setPermanentlyActivated(source.isPermanentlyActivated());
+            newDevice.setTemporarilyActivated(source.isTemporarilyActivated());
+            newDevice.setSubscriptionUntil(source.getSubscriptionUntil());
+
             deviceRepo.save(newDevice);
         }
 
