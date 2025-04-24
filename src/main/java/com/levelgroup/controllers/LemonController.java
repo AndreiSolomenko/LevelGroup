@@ -3,6 +3,7 @@ package com.levelgroup.controllers;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.levelgroup.DeviceInfo;
 import com.levelgroup.DeviceInfoRepository;
+import com.levelgroup.controllers.CountryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.http.*;
@@ -27,6 +28,9 @@ public class LemonController {
 
     @Autowired
     private DeviceInfoRepository deviceRepo;
+
+    @Autowired
+    private CountryService countryService;
 
     private static final String LEMON_SECRET = "qazwsx";
 
@@ -54,6 +58,12 @@ public class LemonController {
                 ResponseEntity<Map> geoResponse = restTemplate.getForEntity(url, Map.class);
                 String country = (String) geoResponse.getBody().get("country");
                 newDevice.setCountry(country);
+
+                if (!countryService.isAllowed(country)) {
+                    newDevice.setPermanentlyActivated(true);
+                    System.out.println("🌍 Країна " + country + " не у списку — активація постійна.");
+                }
+
             } catch (Exception e) {
                 System.out.println("⚠️ Неможливо визначити країну для IP: " + ipAddress);
             }
