@@ -34,6 +34,7 @@
         <th>Activated</th>
         <th>Temp Activated</th>
         <th>Country</th>
+        <th>Subscription Until</th>
     </tr>
     </thead>
     <tbody>
@@ -45,6 +46,7 @@
         <td th:text="${device.permanentlyActivated}">Activated</td>
         <td th:text="${device.temporarilyActivated}">Temp Activated</td>
         <td th:text="${device.country}">Country</td>
+        <td th:text="${device.subscriptionUntil}">Subscription Until</td>
     </tr>
     </tbody>
 </table>
