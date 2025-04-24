@@ -9,6 +9,7 @@ import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import java.time.LocalDate;
 import java.util.*;
 
 import org.springframework.util.StreamUtils;
@@ -86,6 +87,14 @@ public class LemonController {
                 Map<String, Object> attributes = (Map<String, Object>) data.get("attributes");
                 String email = (String) attributes.get("user_email");
 
+
+
+                Map<String, Object> firstOrderItem = (Map<String, Object>) attributes.get("first_order_item");
+                String productName = (String) firstOrderItem.get("product_name");
+
+
+
+
                 Map<String, Object> meta = (Map<String, Object>) payload.get("meta");
                 Map<String, Object> customData = (Map<String, Object>) meta.get("custom_data");
                 String deviceId = (String) customData.get("device_id");
@@ -95,8 +104,27 @@ public class LemonController {
                     if (infoOpt.isPresent()) {
                         DeviceInfo info = infoOpt.get();
                         info.setEmail(email);
-                        info.setPermanentlyActivated(true);
                         info.setTemporarilyActivated(false);
+
+                        LocalDate today = LocalDate.now();
+
+                        switch (productName) {
+                            case "Youtube Pop Out Player (MONTHLY PLAN - $2 / month)":
+                                info.setSubscriptionUntil(today.plusMonths(1));
+                                info.setPermanentlyActivated(false);
+                                break;
+                            case "Youtube Pop Out Player (YEARLY PLAN - $1 / month)":
+                                info.setSubscriptionUntil(today.plusYears(1));
+                                info.setPermanentlyActivated(false);
+                                break;
+                            case "Youtube Popout Player (LIFETIME PLAN - $20 / lifetime)":
+                                info.setSubscriptionUntil(null);
+                                info.setPermanentlyActivated(true);
+                                break;
+                            default:
+                                System.out.println("⚠️ Невідомий тип підписки: " + productName);
+                        }
+
                         deviceRepo.save(info);
                         System.out.println("✅ Користувач активований: " + email + " для пристрою " + deviceId);
                     } else {
@@ -122,6 +150,10 @@ public class LemonController {
         DeviceInfo info = infoOpt.get();
 
         if (info.isPermanentlyActivated()) {
+            return ResponseEntity.ok(Map.of("activated", true));
+        }
+
+        if (info.getSubscriptionUntil() != null && LocalDate.now().isBefore(info.getSubscriptionUntil())) {
             return ResponseEntity.ok(Map.of("activated", true));
         }
 
