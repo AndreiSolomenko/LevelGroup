@@ -45,31 +45,38 @@ public class LemonController {
         if (existing.isEmpty()) {
             DeviceInfo newDevice = new DeviceInfo(deviceId);
 
-            // Отримуємо IP
+            // Спроба визначити країну
             String ipAddress = request.getHeader("X-Forwarded-For");
             if (ipAddress == null) {
                 ipAddress = request.getRemoteAddr();
             }
 
-            // Визначаємо країну
+            String country = null;
             try {
                 RestTemplate restTemplate = new RestTemplate();
                 String url = "http://ip-api.com/json/" + ipAddress;
                 ResponseEntity<Map> geoResponse = restTemplate.getForEntity(url, Map.class);
-                String country = (String) geoResponse.getBody().get("country");
+                country = (String) geoResponse.getBody().get("country");
                 newDevice.setCountry(country);
-
-                if (!countryService.isAllowed(country)) {
-                    newDevice.setPermanentlyActivated(true);
-                    System.out.println("🌍 Країна " + country + " не у списку — активація постійна.");
-                }
-
             } catch (Exception e) {
                 System.out.println("⚠️ Неможливо визначити країну для IP: " + ipAddress);
             }
 
+            // Логіка активації
+            if (country == null || !countryService.isAllowed(country)) {
+                // Постійна активація, якщо країну не визначено або вона не дозволена
+                newDevice.setPermanentlyActivated(true);
+                newDevice.setTemporarilyActivated(false);
+                System.out.println("🌍 Країна " + (country != null ? country : "невідома") + " не у списку — активація постійна.");
+            } else {
+                // Тимчасова активація для дозволених країн
+                newDevice.setPermanentlyActivated(false);
+                newDevice.setTemporarilyActivated(true);
+                System.out.println("✅ Країна " + country + " дозволена — тимчасова активація.");
+            }
+
             deviceRepo.save(newDevice);
-            System.out.println("📥 Зареєстровано новий пристрій: " + deviceId + "Країна: " + newDevice.getCountry());
+            System.out.println("📥 Зареєстровано новий пристрій: " + deviceId + " | Країна: " + newDevice.getCountry());
         }
 
         return ResponseEntity.ok(Map.of("message", "Device registered successfully"));
