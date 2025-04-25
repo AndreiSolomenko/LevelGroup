@@ -37,7 +37,6 @@ public class DeviceInfo {
 
     public DeviceInfo(String deviceId) {
         this.deviceId = deviceId;
-        this.temporarilyActivated = true;
     }
 
     public Long getId() {
