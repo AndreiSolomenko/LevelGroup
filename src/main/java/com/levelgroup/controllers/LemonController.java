@@ -1,11 +1,10 @@
 package com.levelgroup.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.levelgroup.CountryService;
 import com.levelgroup.DeviceInfo;
 import com.levelgroup.DeviceInfoRepository;
-import com.levelgroup.controllers.CountryService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.SpringApplication;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import javax.crypto.Mac;
@@ -16,8 +15,6 @@ import java.util.*;
 import org.springframework.util.StreamUtils;
 
 import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.util.StreamUtils;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.servlet.ModelAndView;
 

@@ -1,4 +1,4 @@
-package com.levelgroup.controllers;
+package com.levelgroup;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
