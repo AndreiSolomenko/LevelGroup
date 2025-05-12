@@ -42,7 +42,7 @@ public class LemonController {
         if (existing.isEmpty()) {
             DeviceInfo newDevice = new DeviceInfo(deviceId);
 
-            // Спроба визначити країну
+            // define country
             String ipAddress = request.getHeader("X-Forwarded-For");
             if (ipAddress == null) {
                 ipAddress = request.getRemoteAddr();
@@ -56,24 +56,24 @@ public class LemonController {
                 country = (String) geoResponse.getBody().get("country");
                 newDevice.setCountry(country);
             } catch (Exception e) {
-                System.out.println("⚠️ Неможливо визначити країну для IP: " + ipAddress);
+                System.out.println("⚠️ Unable to determine country for IP: " + ipAddress);
             }
 
-            // Логіка активації
+            //activation
             if (country == null || !countryService.isAllowed(country)) {
-                // Постійна активація, якщо країну не визначено або вона не дозволена
+                // Permanent activation if country is not defined or not allowed
                 newDevice.setPermanentlyActivated(true);
                 newDevice.setTemporarilyActivated(false);
-                System.out.println("🌍 Країна " + (country != null ? country : "невідома") + " не у списку — активація постійна.");
+                System.out.println("🌍 Country " + (country != null ? country : "unknown") + " not in the list — activation is permanent.");
             } else {
-                // Тимчасова активація для дозволених країн
+                // Temporary activation for allowed countries
                 newDevice.setPermanentlyActivated(false);
                 newDevice.setTemporarilyActivated(true);
-                System.out.println("✅ Країна " + country + " дозволена — тимчасова активація.");
+                System.out.println("✅ Country " + country + " allowed — temporary activation.");
             }
 
             deviceRepo.save(newDevice);
-            System.out.println("📥 Зареєстровано новий пристрій: " + deviceId + " | Країна: " + newDevice.getCountry());
+            System.out.println("📥 New device registered: " + deviceId + " | Country: " + newDevice.getCountry());
         }
 
         return ResponseEntity.ok(Map.of("message", "Device registered successfully"));
@@ -102,11 +102,8 @@ public class LemonController {
                 String email = (String) attributes.get("user_email");
 
 
-
                 Map<String, Object> firstOrderItem = (Map<String, Object>) attributes.get("first_order_item");
                 String productName = (String) firstOrderItem.get("product_name");
-
-
 
 
                 Map<String, Object> meta = (Map<String, Object>) payload.get("meta");
@@ -131,18 +128,18 @@ public class LemonController {
                                 info.setSubscriptionUntil(today.plusYears(1));
                                 info.setPermanentlyActivated(false);
                                 break;
-                            case "Youtube Popout Player (LIFETIME PLAN - $20 / lifetime)":
+                            case "Youtube Pop Out Player (LIFETIME PLAN - $20 / lifetime)":
                                 info.setSubscriptionUntil(null);
                                 info.setPermanentlyActivated(true);
                                 break;
                             default:
-                                System.out.println("⚠️ Невідомий тип підписки: " + productName);
+                                System.out.println("⚠️ Unknown subscription type: " + productName);
                         }
 
                         deviceRepo.save(info);
-                        System.out.println("✅ Користувач активований: " + email + " для пристрою " + deviceId);
+                        System.out.println("✅ User activated: " + email + " for the device " + deviceId);
                     } else {
-                        System.out.println("⚠️ Пристрій не знайдено у базі: " + deviceId);
+                        System.out.println("⚠️ Device not found in the database: " + deviceId);
                     }
                 }
             }
@@ -158,30 +155,45 @@ public class LemonController {
         Optional<DeviceInfo> infoOpt = deviceRepo.findByDeviceId(deviceId);
 
         if (infoOpt.isEmpty()) {
-            return ResponseEntity.ok(Map.of("activated", false));
+            return ResponseEntity.ok(Map.of(
+                    "activated", false,
+                    "tempActivated", false
+            ));
         }
 
         DeviceInfo info = infoOpt.get();
 
         if (info.isPermanentlyActivated()) {
-            return ResponseEntity.ok(Map.of("activated", true));
+            return ResponseEntity.ok(Map.of(
+                    "activated", true,
+                    "tempActivated", false
+            ));
         }
 
         if (info.getSubscriptionUntil() != null && LocalDate.now().isBefore(info.getSubscriptionUntil())) {
-            return ResponseEntity.ok(Map.of("activated", true));
+            return ResponseEntity.ok(Map.of(
+                    "activated", true,
+                    "tempActivated", false
+            ));
         }
 
         if (info.isTemporarilyActivated() && info.getCheckCounter() < 10) {
             info.setCheckCounter(info.getCheckCounter() + 1);
             deviceRepo.save(info);
-            System.out.println("🔓 Тимчасова активація для " + deviceId + ", лічильник: " + info.getCheckCounter());
-            return ResponseEntity.ok(Map.of("activated", true));
+            System.out.println("🔓 Temporary activation for " + deviceId + ", counter: " + info.getCheckCounter());
+            return ResponseEntity.ok(Map.of(
+                    "activated", true,
+                    "tempActivated", true
+            ));
         }
 
         info.setTemporarilyActivated(false);
         deviceRepo.save(info);
-        System.out.println("⛔ Тимчасова активація завершена для " + deviceId);
-        return ResponseEntity.ok(Map.of("activated", false));
+        System.out.println("⛔ Temporary activation completed for " + deviceId);
+        return ResponseEntity.ok(Map.of(
+                "activated", false,
+                "tempActivated", false
+        ));
     }
 
 
@@ -190,15 +202,15 @@ public class LemonController {
         String email = deviceInfo.getEmail();
         String deviceId = deviceInfo.getDeviceId();
 
-        // 1. Знаходимо всі пристрої з таким email
+        // 1. find all devices with this email
         List<DeviceInfo> existingByEmail = deviceRepo.findAllByEmail(email);
 
         if (existingByEmail.isEmpty()) {
-            // Email ще не використовувався — користувач не купував
+            // Email has not been used yet — user has not purchased
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Email not found. Purchase required.");
         }
 
-        // 2. Перевіряємо, чи хоча б один з них активований
+        // 2. Check if at least one of them is activated
         boolean isEmailActivated = existingByEmail.stream().anyMatch(info ->
                 info.isPermanentlyActivated() ||
                         (info.getSubscriptionUntil() != null && LocalDate.now().isBefore(info.getSubscriptionUntil())) ||
@@ -209,7 +221,7 @@ public class LemonController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Email is not activated.");
         }
 
-        // 3. Шукаємо пристрій за deviceId
+        // 3. Searching for a device by deviceId
         Optional<DeviceInfo> existingDevice = deviceRepo.findByDeviceId(deviceId);
 
         if (existingDevice.isPresent()) {
@@ -217,7 +229,7 @@ public class LemonController {
             info.setEmail(email);
             info.setCheckCounter(0);
 
-            // Копіюємо тип активації з активованих пристроїв
+            // Copy the activation type from activated devices
             DeviceInfo source = existingByEmail.stream().filter(e ->
                     e.isPermanentlyActivated() ||
                             (e.getSubscriptionUntil() != null && LocalDate.now().isBefore(e.getSubscriptionUntil())) ||
@@ -235,7 +247,7 @@ public class LemonController {
             newDevice.setEmail(email);
             newDevice.setCheckCounter(0);
 
-            // Копіюємо з активного пристрою
+            // Copy from the active device
             DeviceInfo source = existingByEmail.stream().filter(e ->
                     e.isPermanentlyActivated() ||
                             (e.getSubscriptionUntil() != null && LocalDate.now().isBefore(e.getSubscriptionUntil())) ||
@@ -249,7 +261,7 @@ public class LemonController {
             deviceRepo.save(newDevice);
         }
 
-        System.out.println("✅ Активація пристрою " + deviceId + " для email: " + email);
+        System.out.println("✅ Device activation " + deviceId + " for email: " + email);
         return ResponseEntity.ok("true");
     }
 
@@ -262,7 +274,7 @@ public class LemonController {
     }
 
 
-    // хелпер для підпису
+    // signature helper
     private static String hmacSha256(String secret, String data) {
         try {
             Mac sha256_HMAC = Mac.getInstance("HmacSHA256");
@@ -282,5 +294,16 @@ public class LemonController {
             hexString.append(hex);
         }
         return hexString.toString();
+    }
+
+    @GetMapping("/healthcheck")
+    public String healthcheck() {
+        return "ok";
+    }
+
+
+    @GetMapping("/")
+    public String root() {
+        return "ok";
     }
 }
