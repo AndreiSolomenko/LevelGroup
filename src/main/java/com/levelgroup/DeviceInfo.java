@@ -33,6 +33,8 @@ public class DeviceInfo {
     @Column(name = "subscription_until")
     private LocalDate subscriptionUntil;
 
+    private boolean countryAllowed;
+
     public DeviceInfo() {}
 
     public DeviceInfo(String deviceId) {
@@ -103,4 +105,11 @@ public class DeviceInfo {
         this.subscriptionUntil = subscriptionUntil;
     }
 
+    public boolean isCountryAllowed() {
+        return countryAllowed;
+    }
+
+    public void setCountryAllowed(boolean countryAllowed) {
+        this.countryAllowed = countryAllowed;
+    }
 }
