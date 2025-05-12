@@ -33,6 +33,7 @@ public class DeviceInfo {
     @Column(name = "subscription_until")
     private LocalDate subscriptionUntil;
 
+    @Column(name = "country_allowed")
     private boolean countryAllowed;
 
     public DeviceInfo() {}

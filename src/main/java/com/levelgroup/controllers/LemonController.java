@@ -32,13 +32,14 @@ public class LemonController {
     private static final String LEMON_SECRET = "qazwsx";
 
     @PostMapping("/device-register")
-    public ResponseEntity<Map<String, String>> registerDevice(@RequestBody Map<String, String> body, HttpServletRequest request) {
+    public ResponseEntity<Map<String, Object>> registerDevice(@RequestBody Map<String, String> body, HttpServletRequest request) {
         String deviceId = body.get("device_id");
         if (deviceId == null || deviceId.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("error", "Missing device_id"));
         }
 
         Optional<DeviceInfo> existing = deviceRepo.findByDeviceId(deviceId);
+        boolean countryAllowed = false;
 
         if (existing.isEmpty()) {
             DeviceInfo newDevice = new DeviceInfo(deviceId);
@@ -72,14 +73,21 @@ public class LemonController {
                 newDevice.setPermanentlyActivated(false);
                 newDevice.setTemporarilyActivated(true);
                 newDevice.setCountryAllowed(true);
+                countryAllowed = true;
                 System.out.println("✅ Country " + country + " allowed — temporary activation.");
             }
 
             deviceRepo.save(newDevice);
             System.out.println("📥 New device registered: " + deviceId + " | Country: " + newDevice.getCountry());
+        } else {
+            countryAllowed = existing.get().isCountryAllowed();
         }
 
-        return ResponseEntity.ok(Map.of("message", "Device registered successfully"));
+
+        return ResponseEntity.ok(Map.of(
+                "message", "Device registered successfully",
+                "countryAllowed", countryAllowed
+        ));
     }
 
     @PostMapping("/webhook-new")
