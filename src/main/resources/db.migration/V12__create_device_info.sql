@@ -6,5 +6,6 @@ CREATE TABLE device_info (
     permanently_activated BOOLEAN DEFAULT FALSE,
     temporarily_activated BOOLEAN,
     country VARCHAR(255),
-    subscription_until DATE
+    subscription_until DATE,
+    country_allowed BOOLEAN DEFAULT FALSE
 );
