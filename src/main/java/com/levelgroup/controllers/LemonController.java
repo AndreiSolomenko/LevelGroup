@@ -29,7 +29,7 @@ public class LemonController {
     @Autowired
     private CountryService countryService;
 
-    private static final String LEMON_SECRET = "qazwsx";
+    private static final String LEMON_SECRET = "Youtube_Pop_Out_Player_Secret_Key";
 
     @PostMapping("/device-register")
     public ResponseEntity<Map<String, Object>> registerDevice(@RequestBody Map<String, String> body, HttpServletRequest request) {
@@ -83,9 +83,9 @@ public class LemonController {
             countryAllowed = existing.get().isCountryAllowed();
         }
 
-
         return ResponseEntity.ok(Map.of(
-                "message", "Device registered successfully",
+                "activated", false,
+                "tempActivated", true,
                 "countryAllowed", countryAllowed
         ));
     }
@@ -168,38 +168,33 @@ public class LemonController {
         if (infoOpt.isEmpty()) {
             return ResponseEntity.ok(Map.of(
                     "activated", false,
-                    "tempActivated", false,
-                    "countryAllowed", false
+                    "tempActivated", false
             ));
         }
 
         DeviceInfo info = infoOpt.get();
-        boolean countryAllowed = info.isCountryAllowed();
 
         if (info.isPermanentlyActivated()) {
             return ResponseEntity.ok(Map.of(
                     "activated", true,
-                    "tempActivated", false,
-                    "countryAllowed", countryAllowed
+                    "tempActivated", false
             ));
         }
 
         if (info.getSubscriptionUntil() != null && LocalDate.now().isBefore(info.getSubscriptionUntil())) {
             return ResponseEntity.ok(Map.of(
                     "activated", true,
-                    "tempActivated", false,
-                    "countryAllowed", countryAllowed
+                    "tempActivated", false
             ));
         }
 
-        if (info.isTemporarilyActivated() && info.getCheckCounter() < 10) {
+        if (info.isTemporarilyActivated() && info.getCheckCounter() < 3) {
             info.setCheckCounter(info.getCheckCounter() + 1);
             deviceRepo.save(info);
             System.out.println("🔓 Temporary activation for " + deviceId + ", counter: " + info.getCheckCounter());
             return ResponseEntity.ok(Map.of(
-                    "activated", true,
-                    "tempActivated", true,
-                    "countryAllowed", countryAllowed
+                    "activated", false,
+                    "tempActivated", true
             ));
         }
 
@@ -208,8 +203,7 @@ public class LemonController {
         System.out.println("⛔ Temporary activation completed for " + deviceId);
         return ResponseEntity.ok(Map.of(
                 "activated", false,
-                "tempActivated", false,
-                "countryAllowed", countryAllowed
+                "tempActivated", false
         ));
     }
 
