@@ -29,7 +29,7 @@ public class LemonController {
     @Autowired
     private CountryService countryService;
 
-    private static final String LEMON_SECRET = "Youtube_Pop_Out_Player_Secret_Key";
+    private static final String LEMON_SECRET = "qazwsx";
 
     @PostMapping("/device-register")
     public ResponseEntity<Map<String, Object>> registerDevice(@RequestBody Map<String, String> body, HttpServletRequest request) {
