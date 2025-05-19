@@ -306,15 +306,4 @@ public class LemonController {
         }
         return hexString.toString();
     }
-
-    @GetMapping("/healthcheck")
-    public String healthcheck() {
-        return "ok";
-    }
-
-
-    @GetMapping("/")
-    public String root() {
-        return "ok";
-    }
 }
