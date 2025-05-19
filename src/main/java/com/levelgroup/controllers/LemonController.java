@@ -234,18 +234,12 @@ public class LemonController {
         }
 
         if (info.isTemporarilyActivated() && info.getCheckCounter() < 3) {
-            info.setCheckCounter(info.getCheckCounter() + 1);
-            deviceRepo.save(info);
-            System.out.println("🔓 Temporary activation for " + deviceId + ", counter: " + info.getCheckCounter());
             return ResponseEntity.ok(Map.of(
                     "activated", false,
                     "tempActivated", true
             ));
         }
 
-        info.setTemporarilyActivated(false);
-        deviceRepo.save(info);
-        System.out.println("⛔ Temporary activation completed for " + deviceId);
         return ResponseEntity.ok(Map.of(
                 "activated", false,
                 "tempActivated", false
