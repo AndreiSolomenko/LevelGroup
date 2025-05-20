@@ -3,6 +3,7 @@ package com.levelgroup;
 import jakarta.persistence.*;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "device_info")
@@ -15,6 +16,9 @@ public class DeviceInfo {
     @Column(name = "device_id")
     private String deviceId;
 
+    @Column(name = "registration_time")
+    private LocalDateTime registrationTime;
+
     @Column(name = "email")
     private String email;
 
@@ -22,16 +26,22 @@ public class DeviceInfo {
     private int checkCounter = 0;
 
     @Column(name = "permanently_activated")
-    private boolean permanentlyActivated = false;
+    private boolean permanentlyActivated;
 
     @Column(name = "temporarily_activated")
-    private boolean temporarilyActivated = true;
+    private boolean temporarilyActivated;
+
+    @Column(name = "blocked_at")
+    private LocalDateTime blockedAt;
 
     @Column(name = "country")
     private String country;
 
     @Column(name = "subscription_until")
     private LocalDate subscriptionUntil;
+
+    @Column(name = "activated_at")
+    private LocalDateTime activatedAt;
 
     @Column(name = "country_allowed")
     private boolean countryAllowed;
@@ -56,6 +66,14 @@ public class DeviceInfo {
 
     public void setDeviceId(String deviceId) {
         this.deviceId = deviceId;
+    }
+
+    public LocalDateTime getRegistrationTime() {
+        return registrationTime;
+    }
+
+    public void setRegistrationTime(LocalDateTime registrationTime) {
+        this.registrationTime = registrationTime;
     }
 
     public String getEmail() {
@@ -90,6 +108,14 @@ public class DeviceInfo {
         this.temporarilyActivated = temporarilyActivated;
     }
 
+    public LocalDateTime getBlockedAt() {
+        return blockedAt;
+    }
+
+    public void setBlockedAt(LocalDateTime blockedAt) {
+        this.blockedAt = blockedAt;
+    }
+
     public String getCountry() {
         return country;
     }
@@ -104,6 +130,14 @@ public class DeviceInfo {
 
     public void setSubscriptionUntil(LocalDate subscriptionUntil) {
         this.subscriptionUntil = subscriptionUntil;
+    }
+
+    public LocalDateTime getActivatedAt() {
+        return activatedAt;
+    }
+
+    public void setActivatedAt(LocalDateTime activatedAt) {
+        this.activatedAt = activatedAt;
     }
 
     public boolean isCountryAllowed() {

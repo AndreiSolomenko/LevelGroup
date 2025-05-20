@@ -29,12 +29,15 @@
     <tr>
         <th>ID</th>
         <th>Device ID</th>
+        <th>Registration Time</th>
         <th>Email</th>
         <th>Check Counter</th>
         <th>Activated</th>
         <th>Temp Activated</th>
+        <th>Blocked At</th>
         <th>Country</th>
         <th>Subscription Until</th>
+        <th>Activated At</th>
         <th>Country Allowed</th>
     </tr>
     </thead>
@@ -42,12 +45,15 @@
     <tr th:each="device : ${devices}">
         <td th:text="${device.id}">ID</td>
         <td th:text="${device.deviceId}">Device ID</td>
+        <td th:text="${device.registrationTime}">Registration Time</td>
         <td th:text="${device.email}">Email</td>
         <td th:text="${device.checkCounter}">Check Counter</td>
         <td th:text="${device.permanentlyActivated}">Activated</td>
         <td th:text="${device.temporarilyActivated}">Temp Activated</td>
+        <td th:text="${device.blockedAt}">Blocked At</td>
         <td th:text="${device.country}">Country</td>
         <td th:text="${device.subscriptionUntil}">Subscription Until</td>
+        <td th:text="${device.activatedAt}">Activated At</td>
         <td th:text="${device.countryAllowed}">Country Allowed</td>
     </tr>
     </tbody>

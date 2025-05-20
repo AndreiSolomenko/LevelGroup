@@ -127,23 +127,26 @@ public class LemonController {
                         DeviceInfo info = infoOpt.get();
                         info.setEmail(email);
                         info.setTemporarilyActivated(false);
-                        info.setPermanentlyActivated(true);
 
                         LocalDate today = LocalDate.now();
 
                         switch (productName) {
                             case "Youtube Pop Out Player (MONTHLY PLAN - $2 / month)":
                                 info.setSubscriptionUntil(today.plusMonths(1));
+                                info.setPermanentlyActivated(true);
                                 break;
                             case "Youtube Pop Out Player (YEARLY PLAN - $1 / month)":
                                 info.setSubscriptionUntil(today.plusYears(1));
+                                info.setPermanentlyActivated(true);
                                 break;
                             case "Youtube Pop Out Player (LIFETIME PLAN - $20 / lifetime)":
                                 info.setSubscriptionUntil(null);
+                                info.setPermanentlyActivated(true);
                                 break;
                             default:
                                 System.out.println("⚠️ Unknown subscription type: " + productName);
                         }
+
                         deviceRepo.save(info);
                         System.out.println("✅ User activated: " + email + " for the device " + deviceId);
                     } else {
@@ -158,7 +161,6 @@ public class LemonController {
         }
     }
 
-
     @GetMapping("/check-activation-new")
     public ResponseEntity<Map<String, Object>> checkActivation(@RequestParam("device_id") String deviceId) {
         Optional<DeviceInfo> infoOpt = deviceRepo.findByDeviceId(deviceId);
@@ -172,7 +174,7 @@ public class LemonController {
 
         DeviceInfo info = infoOpt.get();
 
-        if (info.isPermanentlyActivated()) {
+        if (info.isPermanentlyActivated() && info.getSubscriptionUntil() == null) {
             return ResponseEntity.ok(Map.of(
                     "activated", true,
                     "tempActivated", false
@@ -191,7 +193,7 @@ public class LemonController {
             deviceRepo.save(info);
             System.out.println("🔓 Temporary activation for " + deviceId + ", counter: " + info.getCheckCounter());
             return ResponseEntity.ok(Map.of(
-                    "activated", false,
+                    "activated", true,
                     "tempActivated", true
             ));
         }
@@ -204,7 +206,6 @@ public class LemonController {
                 "tempActivated", false
         ));
     }
-
 
     @GetMapping("/data-check")
     public ResponseEntity<Map<String, Object>> checkData(@RequestParam("device_id") String deviceId) {
@@ -219,7 +220,7 @@ public class LemonController {
 
         DeviceInfo info = infoOpt.get();
 
-        if (info.isPermanentlyActivated()) {
+        if (info.isPermanentlyActivated() && info.getSubscriptionUntil() == null) {
             return ResponseEntity.ok(Map.of(
                     "activated", true,
                     "tempActivated", false
