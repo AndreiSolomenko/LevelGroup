@@ -22,7 +22,7 @@
         }
     </style>
 </head>
-<body>
+<body style="font-size: 0.8rem">
 <h2>Registered Devices</h2>
 <table>
     <thead>
@@ -32,7 +32,7 @@
         <th>Registration Time</th>
         <th>Email</th>
         <th>Check Counter</th>
-        <th>Activated</th>
+        <th>Permanently Activated</th>
         <th>Temp Activated</th>
         <th>Blocked At</th>
         <th>Country</th>
@@ -48,7 +48,7 @@
         <td th:text="${device.registrationTime}">Registration Time</td>
         <td th:text="${device.email}">Email</td>
         <td th:text="${device.checkCounter}">Check Counter</td>
-        <td th:text="${device.permanentlyActivated}">Activated</td>
+        <td th:text="${device.permanentlyActivated}">Permanently Activated</td>
         <td th:text="${device.temporarilyActivated}">Temp Activated</td>
         <td th:text="${device.blockedAt}">Blocked At</td>
         <td th:text="${device.country}">Country</td>
