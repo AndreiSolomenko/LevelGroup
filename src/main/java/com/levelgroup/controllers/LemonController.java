@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.*;
 
 import org.springframework.util.StreamUtils;
@@ -43,6 +44,7 @@ public class LemonController {
 
         if (existing.isEmpty()) {
             DeviceInfo newDevice = new DeviceInfo(deviceId);
+            newDevice.setRegistrationTime(LocalDateTime.now());
 
             // define country
             String ipAddress = request.getHeader("X-Forwarded-For");
@@ -67,6 +69,7 @@ public class LemonController {
                 newDevice.setPermanentlyActivated(true);
                 newDevice.setTemporarilyActivated(false);
                 newDevice.setCountryAllowed(false);
+                newDevice.setActivatedAt(LocalDateTime.now());
                 System.out.println("🌍 Country " + (country != null ? country : "unknown") + " not in the list — activation is permanent.");
             } else {
                 // Temporary activation for allowed countries
@@ -127,6 +130,7 @@ public class LemonController {
                         DeviceInfo info = infoOpt.get();
                         info.setEmail(email);
                         info.setTemporarilyActivated(false);
+                        info.setActivatedAt(LocalDateTime.now());
 
                         LocalDate today = LocalDate.now();
 
@@ -199,6 +203,7 @@ public class LemonController {
         }
 
         info.setTemporarilyActivated(false);
+        info.setBlockedAt(LocalDateTime.now());
         deviceRepo.save(info);
         System.out.println("⛔ Temporary activation completed for " + deviceId);
         return ResponseEntity.ok(Map.of(
@@ -280,6 +285,10 @@ public class LemonController {
             info.setEmail(email);
             info.setCheckCounter(0);
 
+            if (info.getActivatedAt() == null) {
+                info.setActivatedAt(LocalDateTime.now());
+            }
+
             // Copy the activation type from activated devices
             DeviceInfo source = existingByEmail.stream().filter(e ->
                     e.isPermanentlyActivated() ||
@@ -297,6 +306,7 @@ public class LemonController {
             newDevice.setDeviceId(deviceId);
             newDevice.setEmail(email);
             newDevice.setCheckCounter(0);
+            newDevice.setActivatedAt(LocalDateTime.now());
 
             // Copy from the active device
             DeviceInfo source = existingByEmail.stream().filter(e ->
