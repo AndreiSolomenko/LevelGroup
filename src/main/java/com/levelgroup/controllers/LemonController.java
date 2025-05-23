@@ -31,6 +31,9 @@ public class LemonController {
     private CountryService countryService;
 
     private static final String LEMON_SECRET = "qazwsx";
+    private static final String SECRET_CODE = "access_to_statistics";
+
+    private static final int TRIAL_CALLS = 5;
 
     @PostMapping("/device-register")
     public ResponseEntity<Map<String, Object>> registerDevice(@RequestBody Map<String, String> body, HttpServletRequest request) {
@@ -192,7 +195,7 @@ public class LemonController {
             ));
         }
 
-        if (info.isTemporarilyActivated() && info.getCheckCounter() < 3) {
+        if (info.isTemporarilyActivated() && info.getCheckCounter() < TRIAL_CALLS) {
             info.setCheckCounter(info.getCheckCounter() + 1);
             deviceRepo.save(info);
             System.out.println("🔓 Temporary activation for " + deviceId + ", counter: " + info.getCheckCounter());
@@ -239,7 +242,7 @@ public class LemonController {
             ));
         }
 
-        if (info.isTemporarilyActivated() && info.getCheckCounter() < 3) {
+        if (info.isTemporarilyActivated() && info.getCheckCounter() < TRIAL_CALLS) {
             return ResponseEntity.ok(Map.of(
                     "activated", false,
                     "tempActivated", true
@@ -327,7 +330,11 @@ public class LemonController {
     }
 
     @GetMapping("/devices")
-    public ModelAndView showAllDevices() {
+    public ModelAndView showAllDevices(@RequestParam(value = "access", required = false) String accessCode) {
+        if (!SECRET_CODE.equals(accessCode)) {
+            return new ModelAndView("error/403");
+        }
+
         List<DeviceInfo> devices = deviceRepo.findAll();
         ModelAndView mav = new ModelAndView("devices");
         mav.addObject("devices", devices);
