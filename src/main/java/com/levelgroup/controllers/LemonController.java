@@ -96,6 +96,9 @@ public class LemonController {
         ));
     }
 
+
+
+
     @PostMapping("/webhook-new")
     public ResponseEntity<Map<String, String>> handleWebhook(HttpServletRequest request) {
         try {
@@ -112,54 +115,43 @@ public class LemonController {
 
             Map<String, Object> payload = new ObjectMapper().readValue(rawBody, Map.class);
             String eventName = (String) ((Map<String, Object>) payload.get("meta")).get("event_name");
+            Map<String, Object> data = (Map<String, Object>) payload.get("data");
+            Map<String, Object> attributes = (Map<String, Object>) data.get("attributes");
+            Map<String, Object> meta = (Map<String, Object>) payload.get("meta");
+            Map<String, Object> customData = (Map<String, Object>) meta.get("custom_data");
 
-            if ("order_created".equals(eventName) || "order_paid".equals(eventName)) {
-                Map<String, Object> data = (Map<String, Object>) payload.get("data");
-                Map<String, Object> attributes = (Map<String, Object>) data.get("attributes");
-                String email = (String) attributes.get("user_email");
+            String email = (String) attributes.get("user_email");
+            String deviceId = (String) customData.get("device_id");
+            String productName = attributes.containsKey("first_order_item")
+                    ? (String) ((Map<String, Object>) attributes.get("first_order_item")).get("product_name")
+                    : "UNKNOWN";
 
+            // --- Головна логіка по подіях ---
+            switch (eventName) {
+                case "order_created":
+                case "subscription_payment_success":
+                    activateUser(deviceId, email, productName);
+                    break;
 
-                Map<String, Object> firstOrderItem = (Map<String, Object>) attributes.get("first_order_item");
-                String productName = (String) firstOrderItem.get("product_name");
+                case "order_refunded":
+                case "subscription_refunded":
+                case "subscription_cancelled":
+                case "subscription_expired":
+                    deactivateUser(deviceId, "❌ Subscription ended or refunded");
+                    break;
 
+                case "subscription_payment_failed":
+                    markPaymentIssue(deviceId, "⚠️ Payment failed");
+                    break;
 
-                Map<String, Object> meta = (Map<String, Object>) payload.get("meta");
-                Map<String, Object> customData = (Map<String, Object>) meta.get("custom_data");
-                String deviceId = (String) customData.get("device_id");
+                case "subscription_created":
+                case "subscription_updated":
+                case "subscription_plan_changed":
+                    logEvent(deviceId, eventName);
+                    break;
 
-                if (email != null && deviceId != null) {
-                    Optional<DeviceInfo> infoOpt = deviceRepo.findByDeviceId(deviceId);
-                    if (infoOpt.isPresent()) {
-                        DeviceInfo info = infoOpt.get();
-                        info.setEmail(email);
-                        info.setTemporarilyActivated(false);
-                        info.setActivatedAt(LocalDateTime.now());
-
-                        LocalDate today = LocalDate.now();
-
-                        switch (productName) {
-                            case "Youtube Pop Out Player (MONTHLY PLAN - $2 / month)":
-                                info.setSubscriptionUntil(today.plusMonths(1));
-                                info.setPermanentlyActivated(true);
-                                break;
-                            case "Youtube Pop Out Player (YEARLY PLAN - $1 / month)":
-                                info.setSubscriptionUntil(today.plusYears(1));
-                                info.setPermanentlyActivated(true);
-                                break;
-                            case "Youtube Pop Out Player (LIFETIME PLAN - $20 / lifetime)":
-                                info.setSubscriptionUntil(null);
-                                info.setPermanentlyActivated(true);
-                                break;
-                            default:
-                                System.out.println("⚠️ Unknown subscription type: " + productName);
-                        }
-
-                        deviceRepo.save(info);
-                        System.out.println("✅ User activated: " + email + " for the device " + deviceId);
-                    } else {
-                        System.out.println("⚠️ Device not found in the database: " + deviceId);
-                    }
-                }
+                default:
+                    System.out.println("⚠️ Unhandled event: " + eventName);
             }
 
             return ResponseEntity.ok(Map.of("message", "Webhook received successfully"));
@@ -167,6 +159,65 @@ public class LemonController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "Internal server error"));
         }
     }
+
+    // --- Допоміжні методи ---
+    private void activateUser(String deviceId, String email, String productName) {
+        Optional<DeviceInfo> infoOpt = deviceRepo.findByDeviceId(deviceId);
+        if (infoOpt.isPresent()) {
+            DeviceInfo info = infoOpt.get();
+            info.setEmail(email);
+            info.setTemporarilyActivated(false);
+            info.setActivatedAt(LocalDateTime.now());
+
+            LocalDate today = LocalDate.now();
+
+            switch (productName) {
+                case "Youtube Pop Out Player (MONTHLY PLAN - $2 / month)":
+                    info.setSubscriptionUntil(today.plusMonths(1));
+                    break;
+                case "Youtube Pop Out Player (YEARLY PLAN - $1 / month)":
+                    info.setSubscriptionUntil(today.plusYears(1));
+                    break;
+                case "Youtube Pop Out Player (LIFETIME PLAN - $20 / lifetime)":
+                    info.setSubscriptionUntil(null);
+                    break;
+                default:
+                    System.out.println("⚠️ Unknown subscription type: " + productName);
+            }
+
+            info.setPermanentlyActivated(true);
+            deviceRepo.save(info);
+            System.out.println("✅ Activated " + email + " for device " + deviceId);
+        } else {
+            System.out.println("⚠️ Device not found: " + deviceId);
+        }
+    }
+
+    private void deactivateUser(String deviceId, String reason) {
+        Optional<DeviceInfo> infoOpt = deviceRepo.findByDeviceId(deviceId);
+        if (infoOpt.isPresent()) {
+            DeviceInfo info = infoOpt.get();
+            info.setPermanentlyActivated(false);
+            info.setSubscriptionUntil(null);
+            deviceRepo.save(info);
+            System.out.println(reason + ": " + deviceId);
+        }
+    }
+
+    private void markPaymentIssue(String deviceId, String message) {
+        System.out.println(message + ": " + deviceId);
+        // Можна додати флаг "paymentFailed" у DeviceInfo
+    }
+
+    private void logEvent(String deviceId, String eventName) {
+        System.out.println("📘 Event received: " + eventName + " for " + deviceId);
+    }
+
+
+
+
+
+
 
     @GetMapping("/check-activation-new")
     public ResponseEntity<Map<String, Object>> checkActivation(@RequestParam("device_id") String deviceId) {
@@ -188,7 +239,7 @@ public class LemonController {
             ));
         }
 
-        if (info.getSubscriptionUntil() != null && LocalDate.now().isBefore(info.getSubscriptionUntil())) {
+        if (info.getSubscriptionUntil() != null && !LocalDate.now().isAfter(info.getSubscriptionUntil().plusDays(1))) {
             return ResponseEntity.ok(Map.of(
                     "activated", true,
                     "tempActivated", false
@@ -235,7 +286,7 @@ public class LemonController {
             ));
         }
 
-        if (info.getSubscriptionUntil() != null && LocalDate.now().isBefore(info.getSubscriptionUntil())) {
+        if (info.getSubscriptionUntil() != null && !LocalDate.now().isAfter(info.getSubscriptionUntil().plusDays(1))) {
             return ResponseEntity.ok(Map.of(
                     "activated", true,
                     "tempActivated", false
