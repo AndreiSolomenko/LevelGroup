@@ -392,6 +392,15 @@ public class LemonController {
         return mav;
     }
 
+    @GetMapping("/devices-in-json-format")
+    public ResponseEntity<?> showAllDevicesInJSON(@RequestParam(value = "access", required = false) String accessCode) {
+        if (!SECRET_CODE.equals(accessCode)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "Access denied"));
+        }
+
+        List<DeviceInfo> devices = deviceRepo.findAll();
+        return ResponseEntity.ok(devices);
+    }
 
     // signature helper
     private static String hmacSha256(String secret, String data) {
