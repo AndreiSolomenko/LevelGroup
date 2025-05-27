@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.levelgroup.CountryService;
 import com.levelgroup.DeviceInfo;
 import com.levelgroup.DeviceInfoRepository;
+import com.levelgroup.ConfigService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
@@ -30,10 +31,11 @@ public class LemonController {
     @Autowired
     private CountryService countryService;
 
+    @Autowired
+    private ConfigService configService;
+
     private static final String LEMON_SECRET = "qazwsx";
     private static final String SECRET_CODE = "access_to_statistics";
-
-    private static final int TRIAL_CALLS = 5;
 
     @PostMapping("/device-register")
     public ResponseEntity<Map<String, Object>> registerDevice(@RequestBody Map<String, String> body, HttpServletRequest request) {
@@ -246,7 +248,7 @@ public class LemonController {
             ));
         }
 
-        if (info.isTemporarilyActivated() && info.getCheckCounter() < TRIAL_CALLS) {
+        if (info.isTemporarilyActivated() && info.getCheckCounter() < configService.getTrialCalls()) {
             info.setCheckCounter(info.getCheckCounter() + 1);
             deviceRepo.save(info);
             System.out.println("🔓 Temporary activation for " + deviceId + ", counter: " + info.getCheckCounter());
@@ -293,7 +295,7 @@ public class LemonController {
             ));
         }
 
-        if (info.isTemporarilyActivated() && info.getCheckCounter() < TRIAL_CALLS) {
+        if (info.isTemporarilyActivated() && info.getCheckCounter() < configService.getTrialCalls()) {
             return ResponseEntity.ok(Map.of(
                     "activated", false,
                     "tempActivated", true
