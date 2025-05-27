@@ -5,13 +5,21 @@ import org.springframework.stereotype.Service;
 @Service
 public class ConfigService {
 
-    private int trialCalls = 5; // initial default
+    private final TrialConfigRepository repository;
 
-    public int getTrialCalls() {
-        return trialCalls;
+    public ConfigService(TrialConfigRepository repository) {
+        this.repository = repository;
     }
 
-    public void setTrialCalls(int trialCalls) {
-        this.trialCalls = trialCalls;
+    public int getTrialCalls() {
+        return repository.findById(1)
+                .map(TrialConfig::getTrialCalls)
+                .orElse(5); // fallback, якщо не знайдено
+    }
+
+    public void setTrialCalls(int value) {
+        TrialConfig config = repository.findById(1).orElse(new TrialConfig());
+        config.setTrialCalls(value);
+        repository.save(config);
     }
 }
