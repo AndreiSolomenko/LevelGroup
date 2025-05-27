@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head><title>Admin Config</title></head>
+<body>
+<h2>Admin Config</h2>
+
+<form method="post" th:action="@{/admin/config}">
+    <label>TRIAL_CALLS:</label>
+    <input type="number" name="trialCalls" th:value="${trialCalls}"/>
+    <button type="submit">Save</button>
+</form>
+
+<p><a th:href="@{/admin/logout}">Logout</a></p>
+</body>
+</html>
