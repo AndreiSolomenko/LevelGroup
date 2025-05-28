@@ -37,6 +37,10 @@ public class LemonController {
     private static final String LEMON_SECRET = "qazwsx";
     private static final String SECRET_CODE = "access_to_statistics";
 
+    private static final int MONTHLY_PLAN = 2;
+    private static final int YEARLY_PLAN = 1;
+    private static final int LIFETIME_PLAN = 20;
+
     @PostMapping("/device-register")
     public ResponseEntity<Map<String, Object>> registerDevice(@RequestBody Map<String, String> body, HttpServletRequest request) {
         String deviceId = body.get("device_id");
@@ -222,29 +226,36 @@ public class LemonController {
 
 
     @GetMapping("/check-activation-new")
-    public ResponseEntity<Map<String, Object>> checkActivation(@RequestParam("device_id") String deviceId) {
+    public ResponseEntity<Map<String, Object>> checkActivation(@RequestParam("device_id") String deviceId, HttpServletRequest request) {
         Optional<DeviceInfo> infoOpt = deviceRepo.findByDeviceId(deviceId);
 
         if (infoOpt.isEmpty()) {
             return ResponseEntity.ok(Map.of(
                     "activated", false,
-                    "tempActivated", false
+                    "tempActivated", false,
+                    "countryAllowed", false
             ));
         }
 
         DeviceInfo info = infoOpt.get();
 
+        tryToUpdateCountry(info, request);
+
+        boolean countryAllowed = info.isCountryAllowed();
+
         if (info.isPermanentlyActivated() && info.getSubscriptionUntil() == null) {
             return ResponseEntity.ok(Map.of(
                     "activated", true,
-                    "tempActivated", false
+                    "tempActivated", false,
+                    "countryAllowed", countryAllowed
             ));
         }
 
         if (info.getSubscriptionUntil() != null && !LocalDate.now().isAfter(info.getSubscriptionUntil().plusDays(1))) {
             return ResponseEntity.ok(Map.of(
                     "activated", true,
-                    "tempActivated", false
+                    "tempActivated", false,
+                    "countryAllowed", countryAllowed
             ));
         }
 
@@ -254,7 +265,8 @@ public class LemonController {
             System.out.println("🔓 Temporary activation for " + deviceId + ", counter: " + info.getCheckCounter());
             return ResponseEntity.ok(Map.of(
                     "activated", true,
-                    "tempActivated", true
+                    "tempActivated", true,
+                    "countryAllowed", countryAllowed
             ));
         }
 
@@ -264,49 +276,118 @@ public class LemonController {
         System.out.println("⛔ Temporary activation completed for " + deviceId);
         return ResponseEntity.ok(Map.of(
                 "activated", false,
-                "tempActivated", false
+                "tempActivated", false,
+                "countryAllowed", countryAllowed
         ));
     }
 
+
+
+
     @GetMapping("/data-check")
-    public ResponseEntity<Map<String, Object>> checkData(@RequestParam("device_id") String deviceId) {
+    public ResponseEntity<Map<String, Object>> checkData(@RequestParam("device_id") String deviceId, HttpServletRequest request) {
         Optional<DeviceInfo> infoOpt = deviceRepo.findByDeviceId(deviceId);
 
         if (infoOpt.isEmpty()) {
             return ResponseEntity.ok(Map.of(
                     "activated", false,
-                    "tempActivated", false
+                    "tempActivated", false,
+                    "countryAllowed", false,
+                    "monthlyPlan", MONTHLY_PLAN,
+                    "yearlyPlan", YEARLY_PLAN,
+                    "lifetimePlan", LIFETIME_PLAN
             ));
         }
 
         DeviceInfo info = infoOpt.get();
 
+        tryToUpdateCountry(info, request);
+
+        boolean countryAllowed = info.isCountryAllowed();
+
         if (info.isPermanentlyActivated() && info.getSubscriptionUntil() == null) {
             return ResponseEntity.ok(Map.of(
                     "activated", true,
-                    "tempActivated", false
+                    "tempActivated", false,
+                    "countryAllowed", countryAllowed,
+                    "monthlyPlan", MONTHLY_PLAN,
+                    "yearlyPlan", YEARLY_PLAN,
+                    "lifetimePlan", LIFETIME_PLAN
             ));
         }
 
         if (info.getSubscriptionUntil() != null && !LocalDate.now().isAfter(info.getSubscriptionUntil().plusDays(1))) {
             return ResponseEntity.ok(Map.of(
                     "activated", true,
-                    "tempActivated", false
+                    "tempActivated", false,
+                    "countryAllowed", countryAllowed,
+                    "monthlyPlan", MONTHLY_PLAN,
+                    "yearlyPlan", YEARLY_PLAN,
+                    "lifetimePlan", LIFETIME_PLAN
             ));
         }
 
         if (info.isTemporarilyActivated() && info.getCheckCounter() < configService.getTrialCalls()) {
             return ResponseEntity.ok(Map.of(
                     "activated", false,
-                    "tempActivated", true
+                    "tempActivated", true,
+                    "countryAllowed", countryAllowed,
+                    "monthlyPlan", MONTHLY_PLAN,
+                    "yearlyPlan", YEARLY_PLAN,
+                    "lifetimePlan", LIFETIME_PLAN
             ));
         }
 
         return ResponseEntity.ok(Map.of(
                 "activated", false,
-                "tempActivated", false
+                "tempActivated", false,
+                "countryAllowed", countryAllowed,
+                "monthlyPlan", MONTHLY_PLAN,
+                "yearlyPlan", YEARLY_PLAN,
+                "lifetimePlan", LIFETIME_PLAN
         ));
     }
+
+
+
+    private void tryToUpdateCountry(DeviceInfo info, HttpServletRequest request) {
+        if (info.getCountry() != null) return;
+
+        String ipAddress = request.getHeader("X-Forwarded-For");
+        if (ipAddress == null) {
+            ipAddress = request.getRemoteAddr();
+        }
+
+        try {
+            RestTemplate restTemplate = new RestTemplate();
+            String url = "http://ip-api.com/json/" + ipAddress;
+            ResponseEntity<Map> geoResponse = restTemplate.getForEntity(url, Map.class);
+            String country = (String) geoResponse.getBody().get("country");
+
+            if (country != null) {
+                info.setCountry(country);
+                boolean allowed = countryService.isAllowed(country);
+                info.setCountryAllowed(allowed);
+
+                if (allowed) {
+                    info.setTemporarilyActivated(true);
+                    info.setPermanentlyActivated(false);
+                    System.out.println("✅ Country updated to " + country + " — activation updated.");
+                } else {
+                    info.setTemporarilyActivated(false);
+                    info.setPermanentlyActivated(true);
+                    info.setActivatedAt(LocalDateTime.now());
+                    System.out.println("🌍 Country " + country + " not allowed — permanent activation.");
+                }
+
+                deviceRepo.save(info);
+            }
+        } catch (Exception e) {
+            System.out.println("⚠️ Unable to determine country for IP (recheck): " + ipAddress);
+        }
+    }
+
+
 
 
     @PostMapping("/authorize")
